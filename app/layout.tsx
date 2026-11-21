@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Mono, Source_Sans_3, Source_Serif_4 } from "next/font/google";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
 const display = Source_Serif_4({
@@ -36,6 +37,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body>
         <a className="skip" href="#content">Skip to content</a>
         {children}
+        <SpeedInsights />
         <noscript>
           <p className="wrap" style={{ padding: "1rem 0" }}>
             The discovery workspace needs JavaScript. Reading the introduction does not.

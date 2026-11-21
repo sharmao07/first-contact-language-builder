@@ -6,7 +6,7 @@ export default function PrivacyPage() {
       <SiteHeader />
       <main id="content" className="wrap section stack" style={{ maxWidth: "68ch" }}>
         <h1>Privacy notice</h1>
-        <p>First-Contact Language Builder stores its database and uploads on the computer running the server. This copy does not send session contents to an analytics service.</p>
+        <p>First-Contact Language Builder stores its database and uploads on the computer running the server. Session contents are not sent to an analytics service. When the site is deployed on Vercel, Speed Insights records page performance for that route, such as load timing. It does not receive recordings, notes, or session data.</p>
         <h2>What is stored</h2>
         <p>Session names, display names, evidence notes, concept history, and files you submit. Files live in the data/uploads directory and are served only with the matching session code. They are not placed in the public web folder.</p>
         <h2>Camera and microphone</h2>
