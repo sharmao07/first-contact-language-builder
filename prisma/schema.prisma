@@ -13,6 +13,7 @@ model DiscoverySession {
   name           String
   description    String   @default("")
   objective      String   @default("")
+  purpose        String   @default("general")
   status         String   @default("active")
   archivedAt     DateTime?
   isDemo         Boolean  @default(false)
@@ -31,6 +32,9 @@ model DiscoverySession {
   notes         ResearchNote[]
   events        SessionEvent[]
   expressions   Expression[]
+  tasks         CommunicationTask[]
+  responses     IndependentResponse[]
+  proposals     ExperimentProposal[]
 
   @@index([status])
   @@index([isDemo])
@@ -41,8 +45,9 @@ model Participant {
   sessionId   String
   session     DiscoverySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   displayName String
-  role        String
-  token       String    @unique
+  role           String
+  communityRole  String    @default("")
+  token          String    @unique
   leftAt      DateTime?
   createdAt   DateTime  @default(now())
   lastSeenAt  DateTime  @default(now())
@@ -53,6 +58,7 @@ model Participant {
   activityResponses ActivityResponse[]
   notes             ResearchNote[]
   events            SessionEvent[]
+  independentResponses IndependentResponse[]
 
   @@unique([sessionId, role])
   @@index([sessionId])
@@ -299,9 +305,12 @@ model Expression {
   grammarNote      String   @default("")
   contextExample   String   @default("")
   counterexample   String   @default("")
-  status      String   @default("hypothesis")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  status             String   @default("hypothesis")
+  shownAt            DateTime?
+  comprehension      String   @default("")
+  comprehensionNote  String   @default("")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
 
   concepts ExpressionConcept[]
 
@@ -318,4 +327,69 @@ model ExpressionConcept {
 
   @@index([expressionId])
   @@index([conceptId])
+}
+
+model CommunicationTask {
+  id            String   @id @default(cuid())
+  sessionId     String
+  session       DiscoverySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  templateId    String
+  title         String
+  category      String
+  step          String   @default("show")
+  shownNote     String   @default("")
+  ambiguityNote String   @default("")
+  outcome       String   @default("")
+  outcomeNote   String   @default("")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  responses IndependentResponse[]
+  proposals ExperimentProposal[]
+
+  @@index([sessionId])
+}
+
+model IndependentResponse {
+  id                  String    @id @default(cuid())
+  sessionId           String
+  session             DiscoverySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  taskId              String
+  task                CommunicationTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  authorParticipantId String
+  author              Participant @relation(fields: [authorParticipantId], references: [id], onDelete: Cascade)
+  kind                String    @default("interpretation")
+  body                String    @default("")
+  storagePath         String?
+  mimeType            String?
+  lockedAt            DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@unique([taskId, authorParticipantId])
+  @@index([sessionId])
+}
+
+model ExperimentProposal {
+  id                      String   @id @default(cuid())
+  sessionId               String
+  session                 DiscoverySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  taskId                  String?
+  task                    CommunicationTask? @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  distinguishes           String   @default("")
+  missing                 String   @default("")
+  rationale               String
+  experimentType          String
+  prompt                  String
+  outcomesJson            String   @default("[]")
+  status                  String   @default("proposed")
+  source                  String   @default("rules")
+  simulated               Boolean  @default(false)
+  disclaimer              String   @default("")
+  approvedByParticipantId String?
+  createdExperimentId     String?
+  createdAt               DateTime @default(now())
+
+  @@index([sessionId])
+  @@index([taskId])
 }

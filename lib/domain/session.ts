@@ -2,7 +2,7 @@ import { prisma } from "@/lib/database/prisma";
 import { recordEvent, requireParticipant } from "@/lib/domain/common";
 import { HttpError } from "@/lib/http";
 import { createToken, generateSessionCode, isSessionCode } from "@/lib/session/codes";
-import { removeUploadDir } from "@/lib/storage/files";
+import { removeUploadDir } from "@/lib/storage";
 import type { createSessionSchema, joinSessionSchema, rejoinSessionSchema, sessionPatchSchema } from "@/lib/validation/schemas";
 import type { z } from "zod";
 
@@ -14,16 +14,21 @@ export async function createSession(input: z.infer<typeof createSessionSchema>) 
     code = generateSessionCode();
   }
   const token = createToken();
+  const community = input.purpose === "community";
+  const communityRole = community ? (input.communityRole ?? "facilitator") : "";
+  const seat = community ? (communityRole === "participant" ? "B" : "A") : input.role;
   const session = await prisma.discoverySession.create({
     data: {
       code,
       name: input.name,
       description: input.description ?? "",
       objective: input.objective ?? "",
+      purpose: input.purpose,
       participants: {
         create: {
           displayName: input.displayName,
-          role: input.role,
+          role: seat,
+          communityRole,
           token,
         },
       },
@@ -33,7 +38,9 @@ export async function createSession(input: z.infer<typeof createSessionSchema>) 
   const participant = session.participants[0];
   await recordEvent(session.id, {
     type: "session.created",
-    message: `${participant.displayName} opened the session as participant ${participant.role}.`,
+    message: community
+      ? `${participant.displayName} opened a community session as ${communityRole}. That role guides the steps. It does not decide meaning.`
+      : `${participant.displayName} opened the session as participant ${participant.role}.`,
     participantId: participant.id,
   });
   return {
@@ -42,7 +49,9 @@ export async function createSession(input: z.infer<typeof createSessionSchema>) 
     token,
     participantId: participant.id,
     role: participant.role,
+    communityRole: participant.communityRole,
     displayName: participant.displayName,
+    purpose: session.purpose,
   };
 }
 
@@ -62,17 +71,21 @@ export async function joinSession(input: z.infer<typeof joinSessionSchema>) {
     throw new HttpError(409, `That seat is reserved for ${seat.displayName}. Rejoin with the recovery key from the original browser.`);
   }
   const token = createToken();
+  const communityRole = session.purpose === "community" ? (input.role === "A" ? "facilitator" : "participant") : "";
   const participant = await prisma.participant.create({
     data: {
       sessionId: session.id,
       displayName: input.displayName,
       role: input.role,
+      communityRole,
       token,
     },
   });
   await recordEvent(session.id, {
     type: "participant.joined",
-    message: `${participant.displayName} joined as participant ${participant.role}.`,
+    message: session.purpose === "community"
+      ? `${participant.displayName} joined as ${communityRole}. Neither person decides the other's meaning.`
+      : `${participant.displayName} joined as participant ${participant.role}.`,
     participantId: participant.id,
   });
   return {

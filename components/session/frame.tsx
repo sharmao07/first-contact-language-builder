@@ -20,15 +20,27 @@ export function SessionFrame({ code, children }: { code: string; children: React
 function FrameBody({ code, children }: { code: string; children: React.ReactNode }) {
   const { state, loading, error, identity, syncMode } = useSessionContext();
   const pathname = usePathname();
+  const community = state?.session.purpose === "community";
   const links = [
+    [`/session/${code}/community`, "Community"],
+    [`/session/${code}/board`, "Board"],
     ["/session/" + code, "Discovery"],
     [`/session/${code}/vocabulary`, "Vocabulary"],
     [`/session/${code}/learn`, "Practice"],
     [`/session/${code}/expressions`, "Expressions"],
     [`/session/${code}/graph`, "Graph"],
+    [`/session/${code}/impact`, "Record"],
     [`/research/${code}`, "Research"],
     ["/settings", "Settings"],
   ];
+  if (community) {
+    const record = links.findIndex((item) => item[1] === "Record");
+    const communityLink = links.findIndex((item) => item[1] === "Community");
+    if (record > communityLink) {
+      const [item] = links.splice(record, 1);
+      links.splice(2, 0, item);
+    }
+  }
 
   return (
     <>
@@ -133,14 +145,14 @@ function JoinPanel() {
     <div className="wrap section grid-2">
       <form className="stack" onSubmit={join}>
         <h1>{state?.session.name}</h1>
-        <p>Choose an open seat. The other person uses the same session code on their own screen.</p>
+        <p>{state?.session.purpose === "community" ? "Choose the open role. The facilitator guides the steps. Neither person decides what the other person's expression means." : "Choose an open seat. The other person uses the same session code on their own screen."}</p>
         <Field label="Your name">
           <input className="control" value={displayName} onChange={(event) => setDisplayName(event.target.value)} required maxLength={40} />
         </Field>
         <Field label="Seat">
           <select className="select" value={role} onChange={(event) => setRole(event.target.value as "A" | "B")}>
-            <option value="A" disabled={taken.has("A")}>Participant A {taken.has("A") ? "(taken)" : ""}</option>
-            <option value="B" disabled={taken.has("B")}>Participant B {taken.has("B") ? "(taken)" : ""}</option>
+            <option value="A" disabled={taken.has("A")}>{state?.session.purpose === "community" ? "Community facilitator" : "Participant A"} {taken.has("A") ? "(taken)" : ""}</option>
+            <option value="B" disabled={taken.has("B")}>{state?.session.purpose === "community" ? "Participant" : "Participant B"} {taken.has("B") ? "(taken)" : ""}</option>
           </select>
         </Field>
         <button className="btn btn-primary" type="submit" disabled={pending}>Join this session</button>

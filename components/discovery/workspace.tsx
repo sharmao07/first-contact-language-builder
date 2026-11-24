@@ -41,7 +41,7 @@ export function Workspace() {
           </div>
           {tab === "evidence" ? (
             <div className="stack">
-              <Composer code={code} token={identity.token} concepts={state.concepts} onDone={reload} />
+              <Composer code={code} token={identity.token} concepts={state.concepts} purpose={state.session.purpose} onDone={reload} />
               <EvidenceList evidence={state.evidence} code={code} token={identity.token} onDone={reload} />
             </div>
           ) : null}

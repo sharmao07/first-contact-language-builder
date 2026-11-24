@@ -173,6 +173,33 @@ npm run smoke
 
 The smoke script creates a session, joins a second seat, uploads an image, checks that hypotheses are not auto-verified, runs two checks, builds practice and an expression, exports Markdown, checks that another session code cannot read the file, and deletes the smoke session.
 
+## Production data
+
+Local development stays on SQLite (`DATABASE_URL=file:../data/first-contact.db`) and stores uploads in `data/uploads`. That disk is not durable on Vercel. A serverless function also has no `DATABASE_URL` until one is added, so `/api/sessions` cannot create a session there yet.
+
+Production is prepared for Supabase Postgres and a private Supabase Storage bucket. The service-role key is read only on the server. No Supabase project is connected in this repository, and production has not been switched over.
+
+Set these in the Vercel project, not in client code:
+
+| Name | Purpose |
+| --- | --- |
+| `DATABASE_URL` | Pooled Postgres URL, with `pgbouncer=true` and a small connection limit. |
+| `DIRECT_URL` | Direct Postgres URL, used by Prisma for schema changes. |
+| `STORAGE_PROVIDER` | `supabase` |
+| `SUPABASE_URL` | Project URL. |
+| `SUPABASE_SERVICE_ROLE_KEY` | Server-only key. Never prefix it with `NEXT_PUBLIC`. |
+| `SUPABASE_STORAGE_BUCKET` | Private bucket name, default `session-media`. |
+
+Then create the tables without touching the local database:
+
+```bash
+./node_modules/.bin/prisma db push --schema prisma/schema.postgresql.prisma
+```
+
+`npm run db:copy` prints row counts and stops. It copies into an empty Postgres database only when `CONFIRM_DATA_COPY=yes` and the `pg` package is installed. It does not delete the SQLite file. `npm run db:seed` replaces the illustrative `SHORE-1001` session, so do not seed after a copy if those rows should remain as they are.
+
+`/api/health` returns 503 when the database is unreachable or storage is not persistent. It does not include credentials.
+
 ## Known limitations
 
 - Joined seats receive server-sent updates about once a second, with polling as a fallback if the stream drops. A quiet seat still shows as quiet after about 12 seconds without a heartbeat.

@@ -345,6 +345,41 @@ canvas.draw {
   .panel-switch { display: flex; gap: 0.5rem; padding: 0.6rem 1rem; border-bottom: 1px solid var(--line); }
 }
 
+.purpose {
+  display: grid;
+  gap: 0.6rem;
+}
+.purpose button {
+  text-align: left;
+  min-height: 4.5rem;
+  padding: 0.8rem 0.9rem;
+}
+.purpose button small { display: block; color: var(--muted); margin-top: 0.2rem; }
+.purpose button.is-selected { border-color: var(--accent); background: var(--bg-elev); }
+.tile-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); gap: 0.6rem; }
+.tile {
+  min-height: 5.5rem;
+  padding: 0.85rem;
+  text-align: left;
+  align-items: flex-start;
+}
+.mark {
+  width: 100%;
+  height: 9rem;
+  border: 1px solid var(--line);
+  background: var(--bg);
+  touch-action: none;
+}
+.concept-chip {
+  min-height: 4.4rem;
+  min-width: 7rem;
+  padding: 0.7rem 0.8rem;
+}
+.share-code { font-size: 1.6rem; letter-spacing: 0.08em; }
+.steps { display: flex; flex-wrap: wrap; gap: 0.35rem 1rem; list-style: none; padding: 0; margin: 0; }
+.steps li { color: var(--muted); padding-bottom: 0.2rem; }
+.steps li[aria-current="step"] { color: var(--ink); font-weight: 650; border-bottom: 2px solid var(--accent); }
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

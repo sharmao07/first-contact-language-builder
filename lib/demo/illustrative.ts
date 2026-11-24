@@ -1,6 +1,6 @@
 import { prisma } from "@/lib/database/prisma";
 import { DEMO_SESSION_CODE } from "@/lib/constants";
-import { removeUploadDir, writeUpload } from "@/lib/storage/files";
+import { removeUploadDir, writeUpload } from "@/lib/storage";
 import { deriveVerificationStatus, type TestResult } from "@/lib/verification/status";
 
 const SESSION = "demo_session_shore";

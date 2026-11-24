@@ -1,4 +1,5 @@
 import { getAIPublicStatus } from "@/lib/ai/config";
+import { comparisonOpen, presentResponse } from "@/lib/community/visibility";
 import { prisma } from "@/lib/database/prisma";
 import { getSessionByCode } from "@/lib/domain/common";
 import { HttpError } from "@/lib/http";
@@ -17,6 +18,9 @@ const include = {
   notes: { include: { author: true }, orderBy: { createdAt: "desc" as const } },
   events: { orderBy: { createdAt: "desc" as const }, take: 80 },
   expressions: { include: { concepts: { orderBy: { position: "asc" as const } } }, orderBy: { createdAt: "desc" as const } },
+  tasks: { orderBy: { createdAt: "desc" as const } },
+  responses: { orderBy: { createdAt: "asc" as const } },
+  proposals: { orderBy: { createdAt: "desc" as const } },
 } satisfies Prisma.DiscoverySessionInclude;
 
 type FullSession = Prisma.DiscoverySessionGetPayload<{ include: typeof include }>;
@@ -73,6 +77,7 @@ function publicParticipant(participant: Participant) {
     id: participant.id,
     displayName: participant.displayName,
     role: participant.role,
+    communityRole: participant.communityRole,
     leftAt: participant.leftAt?.toISOString() ?? null,
     lastSeenAt: participant.lastSeenAt.toISOString(),
     connected: connected(participant.lastSeenAt, participant.leftAt),
@@ -89,6 +94,7 @@ function serialize(session: FullSession, viewer: Participant | null): SessionSta
       name: session.name,
       description: session.description,
       objective: session.objective,
+      purpose: session.purpose,
       status: session.status,
       archivedAt: session.archivedAt?.toISOString() ?? null,
       isDemo: session.isDemo,
@@ -98,7 +104,7 @@ function serialize(session: FullSession, viewer: Participant | null): SessionSta
       updatedAt: session.updatedAt.toISOString(),
     },
     viewer: viewer
-      ? { id: viewer.id, role: viewer.role, displayName: viewer.displayName }
+      ? { id: viewer.id, role: viewer.role, communityRole: viewer.communityRole, displayName: viewer.displayName }
       : null,
     participants: session.participants
       .sort((a, b) => a.role.localeCompare(b.role))
@@ -240,9 +246,57 @@ function serialize(session: FullSession, viewer: Participant | null): SessionSta
       contextExample: expression.contextExample,
       counterexample: expression.counterexample,
       status: expression.status,
+      shownAt: expression.shownAt?.toISOString() ?? null,
+      comprehension: expression.comprehension,
+      comprehensionNote: expression.comprehensionNote,
       createdAt: expression.createdAt.toISOString(),
       updatedAt: expression.updatedAt.toISOString(),
       conceptIds: expression.concepts.map((link) => link.conceptId),
+    })),
+    tasks: session.tasks.map((task) => ({
+      id: task.id,
+      templateId: task.templateId,
+      title: task.title,
+      category: task.category,
+      step: task.step,
+      shownNote: task.shownNote,
+      ambiguityNote: task.ambiguityNote,
+      outcome: task.outcome,
+      outcomeNote: task.outcomeNote,
+      createdAt: task.createdAt.toISOString(),
+    })),
+    responses: session.responses.map((response) => {
+      const task = session.tasks.find((item) => item.id === response.taskId);
+      const siblings = session.responses.filter((item) => item.taskId === response.taskId);
+      const open = comparisonOpen(
+        siblings.map((item) => ({ authorParticipantId: item.authorParticipantId, lockedAt: item.lockedAt?.toISOString() ?? null })),
+        task?.step ?? "show",
+      );
+      return presentResponse({
+        id: response.id,
+        taskId: response.taskId,
+        authorParticipantId: response.authorParticipantId,
+        kind: response.kind,
+        body: response.body,
+        lockedAt: response.lockedAt?.toISOString() ?? null,
+        mediaUrl: null,
+      }, viewer?.id ?? null, open);
+    }),
+    proposals: session.proposals.map((proposal) => ({
+      id: proposal.id,
+      taskId: proposal.taskId,
+      distinguishes: proposal.distinguishes,
+      missing: proposal.missing,
+      rationale: proposal.rationale,
+      experimentType: proposal.experimentType,
+      prompt: proposal.prompt,
+      outcomes: parseJson<Array<{ outcome: string; supports: string; weakens: string }>>(proposal.outcomesJson, []),
+      status: proposal.status,
+      source: proposal.source,
+      simulated: proposal.simulated,
+      disclaimer: proposal.disclaimer,
+      createdExperimentId: proposal.createdExperimentId,
+      createdAt: proposal.createdAt.toISOString(),
     })),
     ai: getAIPublicStatus(),
     counts: {

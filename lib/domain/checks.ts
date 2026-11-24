@@ -320,6 +320,9 @@ export async function updateExpression(code: string, token: string | null, expre
       contextExample: input.contextExample ?? expression.contextExample,
       counterexample: input.counterexample ?? expression.counterexample,
       status: input.status ?? expression.status,
+      shownAt: input.shown ? new Date() : expression.shownAt,
+      comprehension: input.comprehension ?? expression.comprehension,
+      comprehensionNote: input.comprehensionNote ?? expression.comprehensionNote,
     },
   });
   await recordEvent(session.id, {

@@ -22,11 +22,13 @@ export function Composer({
   code,
   token,
   concepts,
+  purpose,
   onDone,
 }: {
   code: string;
   token: string;
   concepts: ConceptDTO[];
+  purpose?: string;
   onDone: () => void;
 }) {
   const [mode, setMode] = useState<Mode>("image");
@@ -78,11 +80,15 @@ export function Composer({
     if (file) form.set("file", file, file.name);
     try {
       const saved = await api<{ evidenceId: string }>(`/api/sessions/${code}/evidence`, { token, form });
-      try {
-        await api(`/api/sessions/${code}/analyze`, { token, body: { evidenceId: saved.evidenceId } });
-        setMessage("Evidence saved. Hypotheses were added as open suggestions, not as verified meanings.");
-      } catch (caught) {
-        setMessage(`Evidence saved. Hypotheses were not created: ${caught instanceof ApiError ? caught.message : "the facilitator failed."}`);
+      if (purpose === "community") {
+        setMessage("Evidence saved. Community access does not create hypotheses from this upload. Respond on the Community page first.");
+      } else {
+        try {
+          await api(`/api/sessions/${code}/analyze`, { token, body: { evidenceId: saved.evidenceId } });
+          setMessage("Evidence saved. Hypotheses were added as open suggestions, not as verified meanings.");
+        } catch (caught) {
+          setMessage(`Evidence saved. Hypotheses were not created: ${caught instanceof ApiError ? caught.message : "the facilitator failed."}`);
+        }
       }
       setDescription("");
       setNotes("");

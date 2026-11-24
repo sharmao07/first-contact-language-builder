@@ -4,6 +4,7 @@ export type ParticipantDTO = {
   id: string;
   displayName: string;
   role: string;
+  communityRole: string;
   leftAt: string | null;
   lastSeenAt: string;
   connected: boolean;
@@ -154,9 +155,53 @@ export type ExpressionDTO = {
   contextExample: string;
   counterexample: string;
   status: string;
+  shownAt: string | null;
+  comprehension: string;
+  comprehensionNote: string;
   createdAt: string;
   updatedAt: string;
   conceptIds: string[];
+};
+
+export type TaskDTO = {
+  id: string;
+  templateId: string;
+  title: string;
+  category: string;
+  step: string;
+  shownNote: string;
+  ambiguityNote: string;
+  outcome: string;
+  outcomeNote: string;
+  createdAt: string;
+};
+
+export type IndependentResponseDTO = {
+  id: string;
+  taskId: string;
+  authorParticipantId: string;
+  kind: string;
+  body: string;
+  lockedAt: string | null;
+  mediaUrl: string | null;
+  hidden: boolean;
+};
+
+export type ProposalDTO = {
+  id: string;
+  taskId: string | null;
+  distinguishes: string;
+  missing: string;
+  rationale: string;
+  experimentType: string;
+  prompt: string;
+  outcomes: Array<{ outcome: string; supports: string; weakens: string }>;
+  status: string;
+  source: string;
+  simulated: boolean;
+  disclaimer: string;
+  createdExperimentId: string | null;
+  createdAt: string;
 };
 
 export type SessionState = {
@@ -166,6 +211,7 @@ export type SessionState = {
     name: string;
     description: string;
     objective: string;
+    purpose: string;
     status: string;
     archivedAt: string | null;
     isDemo: boolean;
@@ -174,7 +220,7 @@ export type SessionState = {
     createdAt: string;
     updatedAt: string;
   };
-  viewer: { id: string; role: string; displayName: string } | null;
+  viewer: { id: string; role: string; communityRole: string; displayName: string } | null;
   participants: ParticipantDTO[];
   concepts: ConceptDTO[];
   evidence: EvidenceDTO[];
@@ -185,6 +231,9 @@ export type SessionState = {
   notes: NoteDTO[];
   events: EventDTO[];
   expressions: ExpressionDTO[];
+  tasks: TaskDTO[];
+  responses: IndependentResponseDTO[];
+  proposals: ProposalDTO[];
   ai: { mode: AIMode; disclosure: string };
   counts: {
     established: number;

@@ -14,7 +14,10 @@ export default function PrivacyPage() {
         <h2>AI providers</h2>
         <p>API keys stay in server environment variables and are not included in browser code. In demo mode, no file is sent to a model. If an OpenAI-compatible provider is configured, images may be sent for description. Audio is stored and is not submitted for transcription, because unfamiliar speech should not be treated as translated.</p>
         <h2>Training</h2>
-        <p>This application does not train a model on your recordings or notes.</p>
+        <p>This application does not train a model on your recordings or notes. Uploaded evidence is not added to a training set by this software.</p>
+        <h2>Community access</h2>
+        <p>A private response stays with the person who wrote or drew it until they lock it and the other person has locked one too. Suggestions about what a gesture might mean stay separate from what the two people record. The application does not automatically treat agreement as the meaning of a word.</p>
+        <p>Community access is not an emergency service and it is not professional interpretation. Display names are the only personal names the session asks for.</p>
         <h2>Deletion</h2>
         <p>Either participant can delete individual evidence. Either participant can delete the whole session by typing its code in the discovery workspace. That removes the session row and its upload folder. Resetting the demo replaces only the illustrative sample.</p>
         <h2>Ownership</h2>

@@ -18,6 +18,17 @@ export const createSessionSchema = z.object({
   objective: z.string().trim().max(2000).optional().default(""),
   displayName: displayNameSchema,
   role: roleSchema.default("A"),
+  purpose: z.enum(["community", "research", "general"]).optional().default("general"),
+  communityRole: z.enum(["facilitator", "participant"]).optional(),
+  consent: z.boolean().optional().default(false),
+}).superRefine((value, context) => {
+  if (value.purpose === "community" && !value.consent) {
+    context.addIssue({
+      code: "custom",
+      message: "Confirm that this session is for shared discovery, not emergency or professional interpretation.",
+      path: ["consent"],
+    });
+  }
 });
 
 export const sessionPatchSchema = z.object({
@@ -154,7 +165,39 @@ export const expressionPatchSchema = z.object({
   counterexample: z.string().trim().max(1000).optional(),
   status: z.enum(["hypothesis", "testing", "understood", "corrected"]).optional(),
   conceptIds: z.array(z.string().trim().min(1)).min(1).max(8).optional(),
+  shown: z.boolean().optional(),
+  comprehension: z.enum(["", "understood", "unclear", "clarification"]).optional(),
+  comprehensionNote: z.string().trim().max(500).optional(),
 });
+
+export const communityActionSchema = z.discriminatedUnion("action", [
+  z.object({ action: z.literal("create-task"), templateId: z.string().trim().min(1) }),
+  z.object({ action: z.literal("show"), taskId: z.string().trim().min(1), note: z.string().trim().max(500).optional() }),
+  z.object({
+    action: z.literal("respond"),
+    taskId: z.string().trim().min(1),
+    kind: z.enum(["interpretation", "drawing"]).optional().default("interpretation"),
+    body: z.string().trim().max(4000),
+  }),
+  z.object({ action: z.literal("lock"), taskId: z.string().trim().min(1) }),
+  z.object({ action: z.literal("ambiguity"), taskId: z.string().trim().min(1), note: z.string().trim().min(1).max(1000) }),
+  z.object({
+    action: z.literal("propose"),
+    taskId: z.string().trim().min(1),
+    interpretations: z.array(z.string().trim().min(1).max(300)).max(6).optional(),
+  }),
+  z.object({
+    action: z.literal("approve"),
+    proposalId: z.string().trim().min(1),
+    conceptId: z.string().trim().min(1).optional(),
+  }),
+  z.object({
+    action: z.literal("outcome"),
+    taskId: z.string().trim().min(1),
+    outcome: z.enum(["understood", "unclear", "another-round"]),
+    note: z.string().trim().max(1000).optional(),
+  }),
+]);
 
 export const deleteSessionSchema = z.object({
   confirmCode: z.string().trim().toUpperCase(),

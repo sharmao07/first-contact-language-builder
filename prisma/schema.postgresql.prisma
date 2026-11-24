@@ -1,0 +1,400 @@
+// Models match prisma/schema.prisma. Only the datasource differs.
+// Local development keeps the SQLite schema. Production generate uses this file
+// when DATABASE_URL starts with postgres.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model DiscoverySession {
+  id             String   @id @default(cuid())
+  code           String   @unique
+  name           String
+  description    String   @default("")
+  objective      String   @default("")
+  purpose        String   @default("general")
+  status         String   @default("active")
+  archivedAt     DateTime?
+  isDemo         Boolean  @default(false)
+  isIllustrative Boolean  @default(false)
+  revision       Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  participants  Participant[]
+  evidence      Evidence[]
+  concepts      Concept[]
+  hypotheses    ConceptHypothesis[]
+  relationships ConceptRelationship[]
+  experiments   VerificationExperiment[]
+  activities    LearningActivity[]
+  notes         ResearchNote[]
+  events        SessionEvent[]
+  expressions   Expression[]
+  tasks         CommunicationTask[]
+  responses     IndependentResponse[]
+  proposals     ExperimentProposal[]
+
+  @@index([status])
+  @@index([isDemo])
+}
+
+model Participant {
+  id          String    @id @default(cuid())
+  sessionId   String
+  session     DiscoverySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  displayName String
+  role           String
+  communityRole  String    @default("")
+  token          String    @unique
+  leftAt      DateTime?
+  createdAt   DateTime  @default(now())
+  lastSeenAt  DateTime  @default(now())
+
+  evidence          Evidence[]
+  hypotheses        ConceptHypothesis[]
+  responses         VerificationResponse[]
+  activityResponses ActivityResponse[]
+  notes             ResearchNote[]
+  events            SessionEvent[]
+  independentResponses IndependentResponse[]
+
+  @@unique([sessionId, role])
+  @@index([sessionId])
+}
+
+model Evidence {
+  id             String    @id @default(cuid())
+  sessionId      String
+  session        DiscoverySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  participantId  String
+  participant    Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  conceptId      String?
+  concept        Concept?  @relation(fields: [conceptId], references: [id], onDelete: SetNull)
+  type           String
+  storagePath    String?
+  mimeType       String?
+  fileName       String?
+  byteSize       Int?
+  description       String    @default("")
+  actionCategory    String?
+  notes             String    @default("")
+  stance            String    @default("observation")
+  consentToAnalyze  Boolean   @default(false)
+  durationMs        Int?
+  qualityNote       String    @default("")
+  annotation        String    @default("")
+  parentEvidenceId  String?
+  gestureDirection  String    @default("")
+  gestureRepetition String    @default("")
+  gestureBody       String    @default("")
+  deletedAt         DateTime?
+  createdAt      DateTime  @default(now())
+
+  hypotheses ConceptHypothesis[]
+
+  @@index([sessionId])
+  @@index([conceptId])
+  @@index([participantId])
+}
+
+model Concept {
+  id                         String    @id @default(cuid())
+  sessionId                  String
+  session                    DiscoverySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  conceptCode                String
+  agreedMeaning              String    @default("")
+  category                   String    @default("other")
+  status                     String    @default("hypothesis")
+  statusReason               String    @default("")
+  contextualNotes            String    @default("")
+  exampleSituations          String    @default("")
+  alternativeInterpretations String    @default("")
+  aiConfidence               Float?
+  createdAt                  DateTime  @default(now())
+  updatedAt                  DateTime  @updatedAt
+  archivedAt                 DateTime?
+  reopenedAt                 DateTime?
+
+  evidence        Evidence[]
+  hypotheses      ConceptHypothesis[]
+  experiments     VerificationExperiment[]
+  vocabulary      VocabularyEntry?
+  activities      LearningActivity[]
+  notes           ResearchNote[]
+  relationsFrom   ConceptRelationship[] @relation("FromConcept")
+  relationsTo     ConceptRelationship[] @relation("ToConcept")
+  expressionLinks ExpressionConcept[]
+
+  @@unique([sessionId, conceptCode])
+  @@index([sessionId, status])
+  @@index([sessionId, category])
+}
+
+model VocabularyEntry {
+  id        String   @id @default(cuid())
+  sessionId String
+  conceptId String   @unique
+  concept   Concept  @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+  summary   String   @default("")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([sessionId])
+}
+
+model ConceptHypothesis {
+  id                     String   @id @default(cuid())
+  sessionId              String
+  session                DiscoverySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  conceptId              String?
+  concept                Concept? @relation(fields: [conceptId], references: [id], onDelete: SetNull)
+  evidenceId             String?
+  evidence               Evidence? @relation(fields: [evidenceId], references: [id], onDelete: SetNull)
+  proposedMeaning        String
+  explanation            String
+  supportingEvidence     String
+  alternatives           String
+  missingInformation     String   @default("")
+  culturalAmbiguity      String   @default("")
+  cannotDetermine        String   @default("")
+  confidence             Float
+  suggestedExperiment    String
+  source                 String
+  status                 String   @default("open")
+  simulated              Boolean  @default(false)
+  providerNote           String   @default("")
+  createdByParticipantId String?
+  participant            Participant? @relation(fields: [createdByParticipantId], references: [id], onDelete: SetNull)
+  createdAt              DateTime @default(now())
+
+  @@index([sessionId])
+  @@index([conceptId])
+  @@index([evidenceId])
+}
+
+model ConceptRelationship {
+  id            String   @id @default(cuid())
+  sessionId     String
+  session       DiscoverySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  fromConceptId String
+  toConceptId   String
+  fromConcept   Concept  @relation("FromConcept", fields: [fromConceptId], references: [id], onDelete: Cascade)
+  toConcept     Concept  @relation("ToConcept", fields: [toConceptId], references: [id], onDelete: Cascade)
+  relationType  String
+  status        String   @default("hypothesis")
+  notes         String   @default("")
+  createdAt     DateTime @default(now())
+
+  @@index([sessionId])
+  @@index([fromConceptId])
+  @@index([toConceptId])
+}
+
+model VerificationExperiment {
+  id          String   @id @default(cuid())
+  sessionId   String
+  session     DiscoverySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  conceptId   String
+  concept     Concept  @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+  type        String
+  prompt      String
+  optionsJson        String   @default("[]")
+  stimulusKey        String   @default("")
+  stimulusVariation  String   @default("")
+  contextNote        String   @default("")
+  status             String   @default("open")
+  round              Int      @default(1)
+  createdAt   DateTime @default(now())
+
+  responses VerificationResponse[]
+
+  @@index([sessionId])
+  @@index([conceptId])
+}
+
+model VerificationResponse {
+  id            String   @id @default(cuid())
+  sessionId     String
+  experimentId  String
+  experiment    VerificationExperiment @relation(fields: [experimentId], references: [id], onDelete: Cascade)
+  participantId String
+  participant   Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  result        String
+  responseJson  String   @default("{}")
+  notes         String   @default("")
+  createdAt     DateTime @default(now())
+
+  @@index([experimentId])
+  @@index([sessionId])
+}
+
+model LearningActivity {
+  id          String   @id @default(cuid())
+  sessionId   String
+  session     DiscoverySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  conceptId   String?
+  concept     Concept? @relation(fields: [conceptId], references: [id], onDelete: SetNull)
+  type        String
+  prompt      String
+  optionsJson String   @default("[]")
+  answerKey   String   @default("")
+  source      String   @default("generated")
+  createdAt   DateTime @default(now())
+
+  responses ActivityResponse[]
+
+  @@index([sessionId])
+  @@index([conceptId])
+}
+
+model ActivityResponse {
+  id            String           @id @default(cuid())
+  activityId    String
+  activity      LearningActivity @relation(fields: [activityId], references: [id], onDelete: Cascade)
+  participantId String
+  participant   Participant      @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  correct       Boolean?
+  responseJson  String           @default("{}")
+  clarification String           @default("")
+  createdAt     DateTime         @default(now())
+
+  @@index([activityId])
+  @@index([participantId])
+}
+
+model ResearchNote {
+  id                  String    @id @default(cuid())
+  sessionId           String
+  session             DiscoverySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  conceptId           String?
+  concept             Concept?  @relation(fields: [conceptId], references: [id], onDelete: SetNull)
+  authorParticipantId String?
+  author              Participant? @relation(fields: [authorParticipantId], references: [id], onDelete: SetNull)
+  title               String
+  body                String
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@index([sessionId])
+  @@index([conceptId])
+}
+
+model SessionEvent {
+  id            String    @id @default(cuid())
+  sessionId     String
+  session       DiscoverySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  participantId String?
+  participant   Participant? @relation(fields: [participantId], references: [id], onDelete: SetNull)
+  type          String
+  message       String
+  payloadJson   String    @default("{}")
+  createdAt     DateTime  @default(now())
+
+  @@index([sessionId, createdAt])
+}
+
+model Expression {
+  id          String   @id @default(cuid())
+  sessionId   String
+  session     DiscoverySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  title       String   @default("")
+  gloss       String   @default("")
+  orderNote        String   @default("")
+  grammarNote      String   @default("")
+  contextExample   String   @default("")
+  counterexample   String   @default("")
+  status             String   @default("hypothesis")
+  shownAt            DateTime?
+  comprehension      String   @default("")
+  comprehensionNote  String   @default("")
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  concepts ExpressionConcept[]
+
+  @@index([sessionId])
+}
+
+model ExpressionConcept {
+  id           String     @id @default(cuid())
+  expressionId String
+  expression   Expression @relation(fields: [expressionId], references: [id], onDelete: Cascade)
+  conceptId    String
+  concept      Concept    @relation(fields: [conceptId], references: [id], onDelete: Cascade)
+  position     Int
+
+  @@index([expressionId])
+  @@index([conceptId])
+}
+
+model CommunicationTask {
+  id            String   @id @default(cuid())
+  sessionId     String
+  session       DiscoverySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  templateId    String
+  title         String
+  category      String
+  step          String   @default("show")
+  shownNote     String   @default("")
+  ambiguityNote String   @default("")
+  outcome       String   @default("")
+  outcomeNote   String   @default("")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  responses IndependentResponse[]
+  proposals ExperimentProposal[]
+
+  @@index([sessionId])
+}
+
+model IndependentResponse {
+  id                  String    @id @default(cuid())
+  sessionId           String
+  session             DiscoverySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  taskId              String
+  task                CommunicationTask @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  authorParticipantId String
+  author              Participant @relation(fields: [authorParticipantId], references: [id], onDelete: Cascade)
+  kind                String    @default("interpretation")
+  body                String    @default("")
+  storagePath         String?
+  mimeType            String?
+  lockedAt            DateTime?
+  createdAt           DateTime  @default(now())
+  updatedAt           DateTime  @updatedAt
+
+  @@unique([taskId, authorParticipantId])
+  @@index([sessionId])
+}
+
+model ExperimentProposal {
+  id                      String   @id @default(cuid())
+  sessionId               String
+  session                 DiscoverySession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  taskId                  String?
+  task                    CommunicationTask? @relation(fields: [taskId], references: [id], onDelete: SetNull)
+  distinguishes           String   @default("")
+  missing                 String   @default("")
+  rationale               String
+  experimentType          String
+  prompt                  String
+  outcomesJson            String   @default("[]")
+  status                  String   @default("proposed")
+  source                  String   @default("rules")
+  simulated               Boolean  @default(false)
+  disclaimer              String   @default("")
+  approvedByParticipantId String?
+  createdExperimentId     String?
+  createdAt               DateTime @default(now())
+
+  @@index([sessionId])
+  @@index([taskId])
+}

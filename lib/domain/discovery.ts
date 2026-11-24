@@ -6,7 +6,8 @@ import { conceptInSession, recordEvent, refreshConceptStatus, requireParticipant
 import { HttpError } from "@/lib/http";
 import { limitBytes } from "@/lib/constants";
 import { nextConceptCode } from "@/lib/session/codes";
-import { extensionFor, inferMime, readUpload, removeUpload, sanitizeName, writeUpload } from "@/lib/storage/files";
+import { extensionFor, inferMime, sanitizeName } from "@/lib/storage/files";
+import { readUpload, removeUpload, writeUpload } from "@/lib/storage";
 import type { z } from "zod";
 import type {
   conceptCreateSchema,
@@ -87,7 +88,7 @@ export async function addEvidence(input: {
     }
     const relative = path.posix.join(session.id, `${evidence.id}.${ext}`);
     try {
-      await writeUpload(relative, file.bytes);
+      await writeUpload(relative, file.bytes, mime);
     } catch (error) {
       await prisma.evidence.delete({ where: { id: evidence.id } });
       throw error;

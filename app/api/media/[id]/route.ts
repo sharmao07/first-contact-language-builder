@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/database/prisma";
 import { getSessionByCode } from "@/lib/domain/common";
 import { HttpError } from "@/lib/http";
-import { readUpload } from "@/lib/storage/files";
+import { readUpload } from "@/lib/storage";
 import { json, run } from "@/lib/api/handlers";
 
 export const runtime = "nodejs";

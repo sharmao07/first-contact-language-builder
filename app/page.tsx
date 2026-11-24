@@ -11,11 +11,11 @@ export default function HomePage() {
       <main id="content">
         <section className="hero wrap">
           <div className="stack">
-            <h1>Meaning begins before language.</h1>
-            <p className="lede">A collaborative discovery system for people who have no shared language. Build understanding through images, gestures, sounds, experiments, and human confirmation.</p>
+            <h1>Everyone deserves a way to be understood.</h1>
+            <p className="lede">Build shared understanding with people who do not speak your language. Discover meaning through visual communication, gestures, sounds and collaborative experiments.</p>
             <div className="row">
-              <Link className="btn btn-primary" href="/start">Start a discovery session</Link>
-              <Link className="btn" href="/demo">Explore a demo</Link>
+              <Link className="btn btn-primary" href="/start">Start community access</Link>
+              <Link className="btn" href="/demo">Explore a sample session</Link>
             </div>
           </div>
           <div className="exchange" aria-hidden="true">
@@ -45,7 +45,8 @@ export default function HomePage() {
 
         <section className="section">
           <div className="wrap stack">
-            <h2>How first-contact discovery works</h2>
+            <h2>Meaning begins before language.</h2>
+            <p>Community access is for a newcomer and a local volunteer, or any two people working across a language barrier. Language research remains available when you open a session. This is a discovery record. It is not emergency interpretation, and it does not claim to decipher an unknown language.</p>
             <div className="grid-2">
               <p className="rule">Two people share a session code and keep their own seats. Either person can bring a photo, a drawing, a sound, a short video, or a description of a gesture.</p>
               <p className="rule">The facilitator proposes several meanings, names what is ambiguous, and suggests a check. A person has to accept, reject, or challenge each one.</p>
