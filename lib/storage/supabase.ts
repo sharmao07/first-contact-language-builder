@@ -36,6 +36,7 @@ async function supabaseStatus(): Promise<StorageStatus> {
     return {
       provider: "supabase",
       configured: false,
+      available: false,
       persistent: false,
       detail: "Set SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, and SUPABASE_STORAGE_BUCKET.",
     };
@@ -46,31 +47,45 @@ async function supabaseStatus(): Promise<StorageStatus> {
       signal: AbortSignal.timeout(4000),
     });
     if (response.ok) {
+      const bucket = await response.json().catch(() => null) as { public?: boolean } | null;
+      if (bucket?.public === true) {
+        return {
+          provider: "supabase",
+          configured: true,
+          available: false,
+          persistent: false,
+          detail: "The Supabase bucket is public. Use a private bucket so objects are not world-readable.",
+        };
+      }
       return {
         provider: "supabase",
         configured: true,
+        available: true,
         persistent: true,
-        detail: "Private Supabase Storage is configured.",
+        detail: "Private Supabase Storage is configured. The service-role key stays on the server.",
       };
     }
     if (response.status === 404) {
       return {
         provider: "supabase",
-        configured: false,
+        configured: true,
+        available: false,
         persistent: false,
         detail: "The Supabase bucket was not found. Create a private bucket named in SUPABASE_STORAGE_BUCKET.",
       };
     }
     return {
       provider: "supabase",
-      configured: false,
+      configured: true,
+      available: false,
       persistent: false,
       detail: "Supabase Storage rejected the server credentials.",
     };
   } catch {
     return {
       provider: "supabase",
-      configured: false,
+      configured: true,
+      available: false,
       persistent: false,
       detail: "Supabase Storage could not be reached.",
     };

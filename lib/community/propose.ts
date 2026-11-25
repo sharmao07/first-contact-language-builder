@@ -1,5 +1,6 @@
 import { getAIMode, aiTimeoutMs } from "@/lib/ai/config";
 import { discriminationSchema, selectDiscriminatingExperiment, type Discrimination } from "@/lib/community/selector";
+import { HttpError } from "@/lib/http";
 
 export async function proposeDiscrimination(interpretations: string[]): Promise<{
   draft: Discrimination;
@@ -9,7 +10,7 @@ export async function proposeDiscrimination(interpretations: string[]): Promise<
   const rules = selectDiscriminatingExperiment(interpretations);
   if (getAIMode() !== "openai") return { draft: rules, source: "rules", simulated: false };
   const key = process.env.OPENAI_API_KEY?.trim();
-  if (!key) return { draft: rules, source: "rules", simulated: false };
+  if (!key) throw new HttpError(503, "No API key is configured. No rule-based check was substituted.");
   const base = (process.env.OPENAI_BASE_URL || "https://api.openai.com/v1").replace(/\/$/, "");
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), aiTimeoutMs());
@@ -31,13 +32,16 @@ export async function proposeDiscrimination(interpretations: string[]): Promise<
         ],
       }),
     });
-    if (!response.ok) return { draft: rules, source: "rules", simulated: false };
+    if (!response.ok) {
+      throw new HttpError(502, "The discrimination request failed. No rule-based check was substituted.");
+    }
     const payload = await response.json() as { choices?: Array<{ message?: { content?: string } }> };
     const text = payload.choices?.[0]?.message?.content ?? "";
     const draft = discriminationSchema.parse(JSON.parse(text));
     return { draft, source: "ai", simulated: false };
-  } catch {
-    return { draft: rules, source: "rules", simulated: false };
+  } catch (error) {
+    if (error instanceof HttpError) throw error;
+    throw new HttpError(502, "The discrimination request failed. No rule-based check was substituted.");
   } finally {
     clearTimeout(timer);
   }

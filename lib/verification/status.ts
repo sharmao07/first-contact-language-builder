@@ -19,6 +19,7 @@ export type CheckRecord = {
   stimulusKey: string;
   experimentType: string;
   decisive?: boolean;
+  authorId?: string;
 };
 
 export function independentMatches(checks: CheckRecord[]) {
@@ -44,6 +45,10 @@ export function independentMatches(checks: CheckRecord[]) {
  * - at least two correct responses use different stimuli
  * - those stimuli come from at least two different check methods
  * - at least three quarters of recorded responses in the round match
+ * - those matching checks were recorded by at least two people
+ *
+ * Matches from one person stay a facilitator-supported observation.
+ * They are not shared session verification.
  */
 export function deriveVerificationStatus(input: {
   archived: boolean;
@@ -78,12 +83,25 @@ export function deriveVerificationStatus(input: {
   const ambiguous = input.checks.filter((check) => check.result === "ambiguous").length;
   const matches = independentMatches(input.checks);
   const rate = tests === 0 ? 0 : correct / tests;
-  const sessionVerified = matches.stimuli >= 2 && matches.methods >= 2 && correct >= 2 && rate >= 0.75;
-  if (sessionVerified) {
+  const authors = new Set(
+    input.checks
+      .filter((check) => check.decisive !== false && check.result === "correct" && check.authorId)
+      .map((check) => check.authorId as string),
+  );
+  const thresholdsMet = matches.stimuli >= 2 && matches.methods >= 2 && correct >= 2 && rate >= 0.75;
+  const shared = authors.size >= 2;
+  if (thresholdsMet && shared) {
     return {
       status: "verified",
       reason:
-        "Session-verified inside this session only. At least two different check methods, on different stimuli, matched, with no disagreements, and at least three quarters of recorded responses matched. This is not a claim of linguistic truth, and it can be reopened.",
+        "Session-verified inside this session only. At least two different check methods, on different stimuli, matched, with no disagreements, and at least three quarters of recorded responses matched. At least two people recorded a matching check. This is not a claim of linguistic truth, and it can be reopened.",
+    };
+  }
+  if (thresholdsMet && !shared) {
+    return {
+      status: "awaiting",
+      reason:
+        "Facilitator-supported observation. The recorded matches meet the check thresholds, but they come from one person. Session verification needs a matching check from the other participant on a different stimulus and method. This is not shared verification and it is not a claim of linguistic truth.",
     };
   }
   if (tests === 0) {
@@ -99,9 +117,10 @@ export function deriveVerificationStatus(input: {
   }
   const sameMethod = matches.stimuli >= 2 && matches.methods < 2;
   const ambiguousNote = ambiguous ? ` ${ambiguous} ambiguous response${ambiguous === 1 ? "" : "s"} did not count as confirmation.` : "";
+  const independentNote = authors.size >= 2 ? " Independent participant evidence is on record." : "";
   const reason = sameMethod
-    ? `More than one match is on record, but they use the same kind of check. A second method, with a different stimulus, is still required. One success is not enough, and repeating one experiment does not count twice.${ambiguousNote}`
-    : `Checks are incomplete or mixed. Ambiguous responses do not confirm a meaning, and two answers to the same stimulus count once.${ambiguousNote}`;
+    ? `More than one match is on record, but they use the same kind of check. A second method, with a different stimulus, is still required. One success is not enough, and repeating one experiment does not count twice.${ambiguousNote}${independentNote}`
+    : `Checks are incomplete or mixed. Ambiguous responses do not confirm a meaning, and two answers to the same stimulus count once.${ambiguousNote}${independentNote}`;
   return input.reopened
     ? { status: "reopened", reason: `${reason} This entry was reopened, so only checks after the reopen count.` }
     : { status: "awaiting", reason };

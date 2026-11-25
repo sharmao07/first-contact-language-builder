@@ -1,13 +1,18 @@
 import { getAIMode } from "@/lib/ai/config";
 import { prisma } from "@/lib/database/prisma";
+import { mediaSigningStatus } from "@/lib/media/sign";
 import { databaseKind, storageStatus, type StorageStatus } from "@/lib/storage";
+import { syncTransport } from "@/lib/sync/transport";
 
 export type HealthReport = {
   ok: boolean;
   mode: "demo" | "openai";
-  application: { ready: true };
+  application: { ready: boolean };
+  environment: string;
   database: { connected: boolean; provider: "sqlite" | "postgresql" | "unknown" };
   storage: StorageStatus;
+  media: { configured: boolean; detail: string };
+  sync: { transport: "stream" | "poll" };
   ai: { mode: "demo" | "openai"; configured: boolean; available: boolean; detail: string };
 };
 
@@ -58,13 +63,17 @@ export function healthHttpStatus(report: { ok: boolean }) {
 
 export async function buildHealthReport(): Promise<HealthReport> {
   const [connected, storage, ai] = await Promise.all([probeDatabase(), storageStatus(), probeAI()]);
-  const ok = connected && storage.configured && storage.persistent;
+  const media = mediaSigningStatus();
+  const ok = connected && storage.configured && storage.available && storage.persistent && media.configured;
   return {
     ok,
     mode: ai.mode,
-    application: { ready: true },
+    application: { ready: ok },
+    environment: process.env.VERCEL_ENV === "preview" || process.env.VERCEL_ENV === "production" ? process.env.VERCEL_ENV : "development",
     database: { connected, provider: databaseKind() },
     storage,
+    media,
+    sync: { transport: syncTransport() },
     ai,
   };
 }

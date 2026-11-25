@@ -234,7 +234,7 @@ export async function respondToActivity(code: string, token: string | null, acti
     participantId: participant.id,
     payload: { activityId, correct },
   });
-  return { responseId: response.id, correct, clarification };
+  return { responseId: response.id, correct, clarification, practiceMode: "solo" as const };
 }
 
 export async function createNote(code: string, token: string | null, input: z.infer<typeof noteSchema>) {

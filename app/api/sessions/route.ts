@@ -1,12 +1,12 @@
-import { json, run } from "@/lib/api/handlers";
-import { createSession, listSessions } from "@/lib/domain/session";
+import { json, readToken, run } from "@/lib/api/handlers";
+import { createSession, listSessionsForToken } from "@/lib/domain/session";
 import { createSessionSchema } from "@/lib/validation/schemas";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-export function GET() {
-  return run(async () => json({ sessions: await listSessions() }));
+export function GET(request: Request) {
+  return run(async () => json({ sessions: await listSessionsForToken(readToken(request)) }));
 }
 
 export function POST(request: Request) {

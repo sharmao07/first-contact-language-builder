@@ -113,6 +113,7 @@ export type ActivityDTO = {
   prompt: string;
   options: Array<{ id: string; label: string }>;
   answerKey: string;
+  practiceMode: "solo";
   source: string;
   createdAt: string;
   responses: Array<{
@@ -187,6 +188,14 @@ export type IndependentResponseDTO = {
   hidden: boolean;
 };
 
+export type ProposalReplyDTO = {
+  participantId: string;
+  body: string;
+  stance: string;
+  lockedAt: string | null;
+  hidden: boolean;
+};
+
 export type ProposalDTO = {
   id: string;
   taskId: string | null;
@@ -202,6 +211,39 @@ export type ProposalDTO = {
   disclaimer: string;
   createdExperimentId: string | null;
   createdAt: string;
+  title: string;
+  researchQuestion: string;
+  procedure: string;
+  remainingAmbiguity: string;
+  limitations: string;
+  usefulness: string;
+  heuristicNote: string;
+  heuristicScore: number;
+  quality: Array<{ name: string; status: string; reason: string }>;
+  qualityWeak: boolean;
+  reviewState: "" | "draft" | "ready";
+  evidenceRefs: string[];
+  competingIds: string[];
+  stimuli: string[];
+  providerNote: string;
+  recordedOutcome: string;
+  review: {
+    supports: string;
+    weakens: string;
+    remainingAmbiguity: string;
+    stillPossible: string[];
+    verified: boolean;
+    nextStep: string;
+  } | null;
+  replies: ProposalReplyDTO[];
+  planOutcomes: Array<{
+    outcome: string;
+    supports: string;
+    weakens: string;
+    distinguishes: boolean;
+    remainingAmbiguity: string;
+    expectedUnder: Array<{ meaning: string; expectation: string }>;
+  }>;
 };
 
 export type SessionState = {

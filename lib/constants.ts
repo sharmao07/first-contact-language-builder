@@ -84,6 +84,8 @@ export const EXPERIMENT_TYPES = [
   "gesture_reproduction",
   "audio_matching",
   "counterexample",
+  "object_substitution",
+  "participant_led",
 ] as const;
 
 export const VARIED_EXPERIMENT_TYPES = [
@@ -93,6 +95,8 @@ export const VARIED_EXPERIMENT_TYPES = [
   "gesture_reproduction",
   "audio_matching",
   "counterexample",
+  "object_substitution",
+  "participant_led",
 ] as const;
 
 export const ACTIVITY_TYPES = [
@@ -138,6 +142,8 @@ export const EXPERIMENT_LABEL: Record<string, string> = {
   gesture_reproduction: "Gesture reproduction",
   audio_matching: "Audio matching",
   counterexample: "Participant counterexample",
+  object_substitution: "Object substitution",
+  participant_led: "Participant-led demonstration",
 };
 
 export const ACTIVITY_LABEL: Record<string, string> = {

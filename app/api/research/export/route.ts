@@ -1,4 +1,4 @@
-import { run } from "@/lib/api/handlers";
+import { readToken, run } from "@/lib/api/handlers";
 import { exportResearch } from "@/lib/domain/research";
 import { HttpError } from "@/lib/http";
 
@@ -17,7 +17,7 @@ export function GET(request: Request) {
     if (format === "csv" && !allowed.has(dataset)) {
       throw new HttpError(400, "CSV dataset must be concepts, hypotheses, evidence, checks, or relationships.");
     }
-    const file = await exportResearch(format, url.searchParams.get("code"), dataset);
+    const file = await exportResearch(format, url.searchParams.get("code"), dataset, readToken(request));
     return new Response(file.body, {
       headers: {
         "Content-Type": file.contentType,

@@ -1,3 +1,5 @@
+import { execFileSync } from "node:child_process";
+
 const base = process.env.SMOKE_BASE ?? "http://127.0.0.1:3010";
 const failures = [];
 
@@ -106,7 +108,7 @@ async function main() {
   const image = await call(`/api/sessions/${code}/evidence`, { token: tokenA, form });
   const analysis = await call(`/api/sessions/${code}/analyze`, { token: tokenA, body: { evidenceId: image.data?.evidenceId } });
   const accepted = await call(`/api/sessions/${code}/hypotheses/${analysis.data?.hypothesisIds?.[0]}`, {
-    token: tokenB,
+    token: tokenA,
     body: { action: "accept", category: "water", meaning: "Water, the substance" },
   });
   note("accept stays unverified", accepted.ok && accepted.data?.status !== "verified", `status=${accepted.data?.status}`);
@@ -182,7 +184,8 @@ async function main() {
   const shoreBefore = await call("/api/sessions/SHORE-1001");
   const removed = await call(`/api/sessions/${code}`, { method: "DELETE", token: tokenA, body: { confirmCode: code } });
   const shoreAfter = await call("/api/sessions/SHORE-1001");
-  note("delete only the journey session", removed.ok && shoreBefore.data?.concepts?.length === shoreAfter.data?.concepts?.length, `shore=${shoreAfter.data?.concepts?.length}`);
+  const shoreCount = Number(execFileSync("sqlite3", ["data/first-contact.db", "SELECT COUNT(*) FROM Concept WHERE sessionId = (SELECT id FROM DiscoverySession WHERE code = 'SHORE-1001');"], { encoding: "utf8" }).trim());
+  note("delete only the journey session", removed.ok && shoreBefore.status === 404 && shoreAfter.status === 404 && shoreCount === 8, `shore=${shoreCount}`);
 
   if (failures.length) {
     console.error(`\n${failures.length} community journey failure(s).`);

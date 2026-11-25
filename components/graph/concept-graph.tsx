@@ -14,7 +14,7 @@ import {
 import { useSessionContext } from "@/components/session/provider";
 import { Field, Notice, StatusText } from "@/components/ui/bits";
 import { api, ApiError } from "@/lib/client/api";
-import { CATEGORIES, RELATION_TYPES } from "@/lib/constants";
+import { CATEGORIES, EXPERIMENT_LABEL, RELATION_TYPES } from "@/lib/constants";
 
 type GraphNode = SimulationNodeDatum & {
   id: string;
@@ -22,6 +22,7 @@ type GraphNode = SimulationNodeDatum & {
   status: string;
   category: string;
   code: string;
+  kind: "concept" | "hypothesis" | "experiment";
 };
 type GraphLink = SimulationLinkDatum<GraphNode> & {
   id: string;
@@ -50,7 +51,14 @@ export function ConceptGraph() {
 
   const concepts = state?.concepts.filter((concept) => concept.status !== "archived") ?? [];
   const relationships = state?.relationships ?? [];
-  const signature = concepts.map((concept) => concept.id).join(",") + "|" + relationships.map((item) => `${item.id}:${item.status}`).join(",");
+  const hypotheses = state?.hypotheses ?? [];
+  const experiments = state?.experiments ?? [];
+  const signature = [
+    concepts.map((concept) => concept.id).join(","),
+    relationships.map((item) => `${item.id}:${item.status}`).join(","),
+    hypotheses.map((item) => item.id).join(","),
+    experiments.map((item) => `${item.id}:${item.responses.map((response) => response.result).join(".")}`).join(","),
+  ].join("|");
 
   useEffect(() => {
     const visible = concepts;
@@ -60,10 +68,39 @@ export function ConceptGraph() {
       status: concept.status,
       category: concept.category,
       code: concept.conceptCode,
+      kind: "concept",
       x: 180 + (index % 4) * 140,
       y: 80 + Math.floor(index / 4) * 110,
     }));
     const known = new Set(seeded.map((node) => node.id));
+    hypotheses.slice(0, 12).forEach((hypothesis, index) => {
+      seeded.push({
+        id: `hypothesis:${hypothesis.id}`,
+        label: hypothesis.proposedMeaning,
+        status: hypothesis.status === "accepted" ? "tentative" : "hypothesis",
+        category: "other",
+        code: "reading",
+        kind: "hypothesis",
+        x: 40 + index * 30,
+        y: 40,
+      });
+      if (hypothesis.conceptId && known.has(hypothesis.conceptId)) {
+        known.add(`hypothesis:${hypothesis.id}`);
+      }
+    });
+    experiments.slice(0, 12).forEach((experiment, index) => {
+      const disagreed = experiment.responses.some((response) => response.result === "disagree");
+      seeded.push({
+        id: `experiment:${experiment.id}`,
+        label: EXPERIMENT_LABEL[experiment.type] ?? experiment.type,
+        status: disagreed ? "disputed" : "testing",
+        category: "other",
+        code: "check",
+        kind: "experiment",
+        x: 80,
+        y: 140 + index * 36,
+      });
+    });
     const edges: GraphLink[] = relationships
       .filter((relationship) => known.has(relationship.fromConceptId) && known.has(relationship.toConceptId))
       .map((relationship) => ({
@@ -74,6 +111,29 @@ export function ConceptGraph() {
         status: relationship.status,
         notes: relationship.notes,
       }));
+    for (const hypothesis of hypotheses.slice(0, 12)) {
+      if (!hypothesis.conceptId || !known.has(hypothesis.conceptId)) continue;
+      edges.push({
+        id: `link-hypothesis-${hypothesis.id}`,
+        source: `hypothesis:${hypothesis.id}`,
+        target: hypothesis.conceptId,
+        relationType: "proposed reading",
+        status: "hypothesis",
+        notes: "",
+      });
+    }
+    for (const experiment of experiments.slice(0, 12)) {
+      if (!known.has(experiment.conceptId)) continue;
+      const disagreed = experiment.responses.some((response) => response.result === "disagree");
+      edges.push({
+        id: `link-experiment-${experiment.id}`,
+        source: `experiment:${experiment.id}`,
+        target: experiment.conceptId,
+        relationType: disagreed ? "disagreement" : "check",
+        status: disagreed ? "disputed" : "hypothesis",
+        notes: "",
+      });
+    }
     const simulation = forceSimulation(seeded)
       .force("link", forceLink<GraphNode, GraphLink>(edges).id((node) => node.id).distance(150))
       .force("charge", forceManyBody().strength(-280))
@@ -210,7 +270,13 @@ export function ConceptGraph() {
                 }}
                 style={{ cursor: "grab" }}
               >
-                <circle r={selected === node.id ? 22 : 18} fill={nodeColor(node.status)} stroke={selected === node.id ? "var(--ink)" : "transparent"} strokeWidth="2" />
+                {node.kind === "experiment" ? (
+                  <rect x={-16} y={-12} width={32} height={24} fill="var(--accent)" stroke={selected === node.id ? "var(--ink)" : "transparent"} strokeWidth="2" />
+                ) : node.kind === "hypothesis" ? (
+                  <polygon points="0,-16 14,0 0,16 -14,0" fill={nodeColor(node.status)} stroke={selected === node.id ? "var(--ink)" : "transparent"} strokeWidth="2" />
+                ) : (
+                  <circle r={selected === node.id ? 22 : 18} fill={nodeColor(node.status)} stroke={selected === node.id ? "var(--ink)" : "transparent"} strokeWidth="2" />
+                )}
                 <text y="34" textAnchor="middle" fill="var(--ink)" fontSize="12">{clip(node.label)}</text>
               </g>
             ))}

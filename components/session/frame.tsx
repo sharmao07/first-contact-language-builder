@@ -23,6 +23,7 @@ function FrameBody({ code, children }: { code: string; children: React.ReactNode
   const community = state?.session.purpose === "community";
   const links = [
     [`/session/${code}/community`, "Community"],
+    [`/session/${code}/experiments`, "Checks"],
     [`/session/${code}/board`, "Board"],
     ["/session/" + code, "Discovery"],
     [`/session/${code}/vocabulary`, "Vocabulary"],

@@ -1,13 +1,19 @@
-import { readToken } from "@/lib/api/handlers";
+import { json, readToken } from "@/lib/api/handlers";
 import { syncSession } from "@/lib/domain/serialize";
 import { HttpError } from "@/lib/http";
+import { syncTransport } from "@/lib/sync/transport";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 export async function GET(request: Request, context: { params: Promise<{ code: string }> }) {
   const { code } = await context.params;
+  if (syncTransport() === "poll") {
+    return json({ transport: "poll", revision: 0, state: null, presence: [] });
+  }
   const token = readToken(request);
+  const started = Date.now();
   const encoder = new TextEncoder();
   let timer: ReturnType<typeof setInterval> | null = null;
   let closed = false;
@@ -42,7 +48,13 @@ export async function GET(request: Request, context: { params: Promise<{ code: s
       };
 
       await tick();
-      timer = setInterval(() => void tick(), 1200);
+      timer = setInterval(() => {
+        if (Date.now() - started > 45_000) {
+          close();
+          return;
+        }
+        void tick();
+      }, 1200);
     },
   });
 

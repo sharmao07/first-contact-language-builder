@@ -1,4 +1,4 @@
-import { EXPERIMENT_LABEL, VARIED_EXPERIMENT_TYPES } from "@/lib/constants";
+import { EXPERIMENT_LABEL, EXPERIMENT_TYPES, VARIED_EXPERIMENT_TYPES } from "@/lib/constants";
 
 export type ExperimentOption = { id: string; label: string };
 
@@ -15,17 +15,7 @@ type ConceptLite = {
   alternativeInterpretations: string;
 };
 
-const TYPE_SET = new Set([
-  "visual_discrimination",
-  "context_testing",
-  "reverse_demonstration",
-  "contrast_testing",
-  "repeated_verification",
-  "action_demonstration",
-  "gesture_reproduction",
-  "audio_matching",
-  "counterexample",
-]);
+const TYPE_SET = new Set<string>(EXPERIMENT_TYPES);
 
 const VARIED = new Set<string>(VARIED_EXPERIMENT_TYPES);
 
@@ -59,6 +49,20 @@ export function buildExperiment(input: {
     stimulusKey,
     stimulusVariation: variation,
   });
+
+  if (input.type === "object_substitution") {
+    return finish(
+      `${round} ${label}. Keep the same situation and replace the object${note ? `: ${note}` : ""}. The other person says whether this still matches the earlier expression, does not, or is unclear. The choice is their judgment, not a score.`,
+      options,
+    );
+  }
+
+  if (input.type === "participant_led") {
+    return finish(
+      `${round} ${label}. The person who did not choose the first example demonstrates what they think was meant, using their own example${note ? `: ${note}` : ""}. The other person records whether that demonstration matches, misses, or is mixed. Neither person is told which reading was expected.`,
+      [],
+    );
+  }
 
   if (input.type === "reverse_demonstration" || input.type === "action_demonstration" || input.type === "gesture_reproduction") {
     return finish(

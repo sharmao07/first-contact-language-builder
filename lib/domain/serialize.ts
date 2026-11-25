@@ -1,7 +1,13 @@
 import { getAIPublicStatus } from "@/lib/ai/config";
 import { comparisonOpen, presentResponse } from "@/lib/community/visibility";
 import { prisma } from "@/lib/database/prisma";
-import { getSessionByCode } from "@/lib/domain/common";
+import { OPAQUE_SESSION } from "@/lib/access/credentials";
+import { canMutateHypotheses } from "@/lib/access/policy";
+import { requireParticipant } from "@/lib/domain/common";
+import { hideEventPayload, presentReplies, redactPrivateEvent, seesResearchPlan } from "@/lib/experiments/privacy";
+import { parseReplies, storedRecommendation } from "@/lib/domain/plans";
+import { signMediaPath } from "@/lib/media/sign";
+import { syncTransport } from "@/lib/sync/transport";
 import { HttpError } from "@/lib/http";
 import { parseJson } from "@/lib/utils";
 import type { Participant, Prisma } from "@prisma/client";
@@ -31,45 +37,36 @@ function connected(lastSeen: Date, leftAt: Date | null) {
 }
 
 export async function loadSessionState(code: string, token: string | null): Promise<SessionState> {
-  const session = await getSessionByCode(code);
-  let viewer: Participant | null = null;
-  if (token) {
-    const participant = await prisma.participant.findUnique({ where: { token } });
-    if (!participant || participant.sessionId !== session.id) {
-      throw new HttpError(403, "This recovery key does not belong to the session.");
-    }
-    if (!participant.leftAt) {
-      viewer = await prisma.participant.update({
-        where: { id: participant.id },
-        data: { lastSeenAt: new Date() },
-      });
-    } else {
-      viewer = participant;
-    }
-  }
+  const { session, participant } = await requireParticipant(code, token);
   const full = await prisma.discoverySession.findUnique({ where: { id: session.id }, include });
-  if (!full) throw new HttpError(404, "No session uses that code.");
-  return serialize(full, viewer);
+  if (!full) throw new HttpError(404, OPAQUE_SESSION);
+  return serialize(full, participant);
 }
 
 export async function syncSession(code: string, token: string | null, since: number) {
-  const session = await getSessionByCode(code);
-  if (token) {
-    const participant = await prisma.participant.findUnique({ where: { token } });
-    if (participant && participant.sessionId === session.id && !participant.leftAt) {
-      await prisma.participant.update({ where: { id: participant.id }, data: { lastSeenAt: new Date() } });
-    } else if (participant && participant.sessionId !== session.id) {
-      throw new HttpError(403, "This recovery key does not belong to the session.");
-    }
-  }
+  const { session } = await requireParticipant(code, token);
   const fresh = await prisma.discoverySession.findUnique({ where: { id: session.id } });
-  if (!fresh) throw new HttpError(404, "No session uses that code.");
+  if (!fresh) throw new HttpError(404, OPAQUE_SESSION);
+  const mediaUrls = await currentMediaUrls(session.id);
   if (since > 0 && fresh.revision === since) {
     const participants = await prisma.participant.findMany({ where: { sessionId: session.id } });
-    return { revision: fresh.revision, state: null, presence: participants.map(publicParticipant) };
+    return { revision: fresh.revision, state: null, presence: participants.map(publicParticipant), mediaUrls, transport: syncTransport() };
   }
   const state = await loadSessionState(code, token);
-  return { revision: state.session.revision, state, presence: state.participants };
+  return { revision: state.session.revision, state, presence: state.participants, mediaUrls, transport: syncTransport() };
+}
+
+async function currentMediaUrls(sessionId: string) {
+  const rows = await prisma.evidence.findMany({
+    where: { sessionId, deletedAt: null, storagePath: { not: null } },
+    select: { id: true },
+  });
+  const urls: Record<string, string> = {};
+  for (const row of rows) {
+    const url = signMediaPath(row.id);
+    if (url) urls[row.id] = url;
+  }
+  return urls;
 }
 
 function publicParticipant(participant: Participant) {
@@ -87,6 +84,10 @@ function publicParticipant(participant: Participant) {
 function serialize(session: FullSession, viewer: Participant | null): SessionState {
   const names = new Map(session.participants.map((participant) => [participant.id, participant.displayName]));
   const activeConcepts = session.concepts.filter((concept) => concept.status !== "archived");
+  const seesPlan = seesResearchPlan(session.purpose, viewer);
+  const seesKey = viewer
+    ? canMutateHypotheses({ purpose: session.purpose, role: viewer.role, communityRole: viewer.communityRole })
+    : false;
   return {
     session: {
       id: session.id,
@@ -146,10 +147,10 @@ function serialize(session: FullSession, viewer: Participant | null): SessionSta
       gestureDirection: item.gestureDirection,
       gestureRepetition: item.gestureRepetition,
       gestureBody: item.gestureBody,
-      mediaUrl: item.storagePath ? `/api/media/${item.id}?code=${session.code}` : null,
+      mediaUrl: item.storagePath ? signMediaPath(item.id) : null,
       createdAt: item.createdAt.toISOString(),
     })),
-    hypotheses: session.hypotheses.map((hypothesis) => ({
+    hypotheses: seesPlan ? session.hypotheses.map((hypothesis) => ({
       id: hypothesis.id,
       conceptId: hypothesis.conceptId,
       evidenceId: hypothesis.evidenceId,
@@ -168,7 +169,7 @@ function serialize(session: FullSession, viewer: Participant | null): SessionSta
       providerNote: hypothesis.providerNote,
       createdByParticipantId: hypothesis.createdByParticipantId,
       createdAt: hypothesis.createdAt.toISOString(),
-    })),
+    })) : [],
     relationships: session.relationships.map((relationship) => ({
       id: relationship.id,
       fromConceptId: relationship.fromConceptId,
@@ -183,20 +184,25 @@ function serialize(session: FullSession, viewer: Participant | null): SessionSta
       conceptId: experiment.conceptId,
       type: experiment.type,
       prompt: experiment.prompt,
-      options: parseJson<Array<{ id: string; label: string }>>(experiment.optionsJson, []),
-      stimulusKey: experiment.stimulusKey,
+      options: seesPlan ? parseJson<Array<{ id: string; label: string }>>(experiment.optionsJson, []) : [],
+      stimulusKey: seesPlan ? experiment.stimulusKey : "",
       stimulusVariation: experiment.stimulusVariation,
-      contextNote: experiment.contextNote,
+      contextNote: seesPlan ? experiment.contextNote : "",
       status: experiment.status,
       round: experiment.round,
       createdAt: experiment.createdAt.toISOString(),
-      responses: experiment.responses.map((response) => ({
+      responses: experiment.responses.filter((response) => {
+        if (seesPlan) return true;
+        if (response.participantId === viewer?.id) return true;
+        const authors = new Set(experiment.responses.map((item) => item.participantId));
+        return authors.size >= 2;
+      }).map((response) => ({
         id: response.id,
         participantId: response.participantId,
         participantName: response.participant.displayName,
         result: response.result,
-        selectedOptionId: parseJson<{ selectedOptionId?: string }>(response.responseJson, {}).selectedOptionId ?? "",
-        notes: response.notes,
+        selectedOptionId: seesPlan ? parseJson<{ selectedOptionId?: string }>(response.responseJson, {}).selectedOptionId ?? "" : "",
+        notes: response.participantId === viewer?.id || seesPlan ? response.notes : "",
         createdAt: response.createdAt.toISOString(),
       })),
     })),
@@ -206,20 +212,23 @@ function serialize(session: FullSession, viewer: Participant | null): SessionSta
       type: activity.type,
       prompt: activity.prompt,
       options: parseJson<Array<{ id: string; label: string }>>(activity.optionsJson, []),
-      answerKey: activity.answerKey,
+      answerKey: seesKey ? activity.answerKey : "",
+      practiceMode: "solo" as const,
       source: activity.source,
       createdAt: activity.createdAt.toISOString(),
-      responses: activity.responses.map((response) => ({
-        id: response.id,
-        participantId: response.participantId,
-        participantName: response.participant.displayName,
-        correct: response.correct,
-        notes: parseJson<{ notes?: string }>(response.responseJson, {}).notes ?? "",
-        clarification: response.clarification,
-        createdAt: response.createdAt.toISOString(),
-      })),
+      responses: activity.responses
+        .filter((response) => seesKey || response.participantId === viewer?.id)
+        .map((response) => ({
+          id: response.id,
+          participantId: response.participantId,
+          participantName: response.participant.displayName,
+          correct: response.participantId === viewer?.id || seesKey ? response.correct : null,
+          notes: response.participantId === viewer?.id || seesKey ? parseJson<{ notes?: string }>(response.responseJson, {}).notes ?? "" : "",
+          clarification: response.participantId === viewer?.id || seesKey ? response.clarification : "",
+          createdAt: response.createdAt.toISOString(),
+        })),
     })),
-    notes: session.notes.map((note) => ({
+    notes: session.notes.filter((note) => seesPlan || note.authorParticipantId === viewer?.id).map((note) => ({
       id: note.id,
       conceptId: note.conceptId,
       authorParticipantId: note.authorParticipantId,
@@ -233,8 +242,10 @@ function serialize(session: FullSession, viewer: Participant | null): SessionSta
       id: event.id,
       participantId: event.participantId,
       type: event.type,
-      message: event.message,
-      payload: parseJson(event.payloadJson, {}),
+      message: redactPrivateEvent(event.type, event.message, seesPlan),
+      payload: event.type === "activity.answered"
+        ? (seesKey || event.participantId === viewer?.id ? parseJson(event.payloadJson, {}) : {})
+        : hideEventPayload(event.type, seesPlan) ? {} : parseJson(event.payloadJson, {}),
       createdAt: event.createdAt.toISOString(),
     })),
     expressions: session.expressions.map((expression) => ({
@@ -282,22 +293,46 @@ function serialize(session: FullSession, viewer: Participant | null): SessionSta
         mediaUrl: null,
       }, viewer?.id ?? null, open);
     }),
-    proposals: session.proposals.map((proposal) => ({
-      id: proposal.id,
-      taskId: proposal.taskId,
-      distinguishes: proposal.distinguishes,
-      missing: proposal.missing,
-      rationale: proposal.rationale,
-      experimentType: proposal.experimentType,
-      prompt: proposal.prompt,
-      outcomes: parseJson<Array<{ outcome: string; supports: string; weakens: string }>>(proposal.outcomesJson, []),
-      status: proposal.status,
-      source: proposal.source,
-      simulated: proposal.simulated,
-      disclaimer: proposal.disclaimer,
-      createdExperimentId: proposal.createdExperimentId,
-      createdAt: proposal.createdAt.toISOString(),
-    })),
+    proposals: session.proposals.map((proposal) => {
+      const plan = seesPlan ? storedRecommendation(proposal.planJson) : null;
+      const replies = presentReplies(parseReplies(proposal.repliesJson), viewer?.id ?? null);
+      const visiblePrompt = proposal.status === "approved" || seesPlan ? proposal.prompt : "";
+      return {
+        id: proposal.id,
+        taskId: proposal.taskId,
+        distinguishes: seesPlan ? proposal.distinguishes : "",
+        missing: seesPlan ? proposal.missing : "",
+        rationale: seesPlan ? proposal.rationale : "",
+        experimentType: proposal.experimentType,
+        prompt: visiblePrompt,
+        outcomes: seesPlan ? parseJson<Array<{ outcome: string; supports: string; weakens: string }>>(proposal.outcomesJson, []) : [],
+        status: proposal.status,
+        source: seesPlan ? proposal.source : "",
+        simulated: proposal.simulated,
+        disclaimer: seesPlan ? proposal.disclaimer : "",
+        createdExperimentId: proposal.createdExperimentId,
+        createdAt: proposal.createdAt.toISOString(),
+        title: proposal.status === "approved" || seesPlan ? proposal.title : "A check is being prepared.",
+        researchQuestion: seesPlan ? proposal.researchQuestion : "",
+        procedure: seesPlan ? proposal.procedure : "",
+        remainingAmbiguity: seesPlan ? proposal.remainingAmbiguity : "",
+        limitations: seesPlan ? proposal.limitations : "",
+        usefulness: seesPlan ? proposal.usefulness : "",
+        heuristicNote: seesPlan ? proposal.heuristicNote : "",
+        heuristicScore: seesPlan ? proposal.heuristicScore : 0,
+        quality: seesPlan ? plan?.quality?.checks ?? [] : [],
+        qualityWeak: seesPlan ? Boolean(plan?.quality?.weak) : false,
+        reviewState: seesPlan && (plan?.reviewState === "draft" || plan?.reviewState === "ready") ? plan.reviewState : "",
+        evidenceRefs: seesPlan ? parseJson<string[]>(proposal.evidenceRefsJson, []) : [],
+        competingIds: seesPlan ? parseJson<string[]>(proposal.competingIdsJson, []) : [],
+        stimuli: seesPlan ? parseJson<string[]>(proposal.stimuliJson, []) : [],
+        providerNote: seesPlan ? proposal.providerNote : "",
+        recordedOutcome: seesPlan ? proposal.recordedOutcome : "",
+        review: seesPlan ? readableReview(proposal.outcomeReviewJson) : null,
+        replies,
+        planOutcomes: plan?.outcomes ?? [],
+      };
+    }),
     ai: getAIPublicStatus(),
     counts: {
       established: activeConcepts.filter((concept) => concept.status === "verified").length,
@@ -308,5 +343,25 @@ function serialize(session: FullSession, viewer: Participant | null): SessionSta
       evidence: session.evidence.length,
       openHypotheses: session.hypotheses.filter((hypothesis) => hypothesis.status === "open").length,
     },
+  };
+}
+
+function readableReview(value: string) {
+  const parsed = parseJson<{
+    supports?: string;
+    weakens?: string;
+    remainingAmbiguity?: string;
+    stillPossible?: string[];
+    verified?: boolean;
+    nextStep?: string;
+  } | null>(value, null);
+  if (!parsed?.supports || !parsed.weakens || !parsed.remainingAmbiguity || !parsed.nextStep) return null;
+  return {
+    supports: parsed.supports,
+    weakens: parsed.weakens,
+    remainingAmbiguity: parsed.remainingAmbiguity,
+    stillPossible: Array.isArray(parsed.stillPossible) ? parsed.stillPossible : [],
+    verified: false,
+    nextStep: parsed.nextStep,
   };
 }

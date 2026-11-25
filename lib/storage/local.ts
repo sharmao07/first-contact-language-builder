@@ -9,13 +9,15 @@ async function localStatus(): Promise<StorageStatus> {
     return {
       provider: "local",
       configured: true,
+      available: true,
       persistent: true,
       detail: "Uploads stay in data/uploads on this machine.",
     };
   } catch {
     return {
       provider: "local",
-      configured: false,
+      configured: true,
+      available: false,
       persistent: false,
       detail: "The local upload directory is not writable.",
     };

@@ -32,8 +32,8 @@ export default function SessionsPage() {
       <SiteHeader />
       <main id="content" className="wrap section stack">
         <h1>Sessions on this computer</h1>
-        <p className="muted">This list is the database of the machine running the app. It is not a public directory. Opening a session still requires its code, and changing it requires a seat.</p>
-        {error ? <p>{error}</p> : null}
+        <p className="muted">Session codes are not listed here. Join with the code you were given. A code opens a seat. It does not by itself show the record.</p>
+        {error ? <p>Join from the start page with a session code. The directory is not available without a seat.</p> : null}
         {!rows && !error ? <div className="skeleton" /> : null}
         <div className="stack">
           {rows?.map((session) => (

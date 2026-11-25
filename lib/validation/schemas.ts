@@ -199,6 +199,39 @@ export const communityActionSchema = z.discriminatedUnion("action", [
   }),
 ]);
 
+export const planActionSchema = z.discriminatedUnion("action", [
+  z.object({
+    action: z.literal("request"),
+    taskId: z.string().trim().min(1).optional(),
+    followUp: z.boolean().optional(),
+    shareWithModel: z.boolean().optional(),
+  }),
+  z.object({ action: z.literal("reject"), proposalId: z.string().trim().min(1) }),
+  z.object({
+    action: z.literal("edit"),
+    proposalId: z.string().trim().min(1),
+    prompt: z.string().trim().min(1).max(800),
+    title: z.string().trim().max(160).optional(),
+  }),
+  z.object({
+    action: z.literal("approve"),
+    proposalId: z.string().trim().min(1),
+    conceptId: z.string().trim().min(1).optional(),
+  }),
+  z.object({
+    action: z.literal("reply"),
+    proposalId: z.string().trim().min(1),
+    body: z.string().trim().min(1).max(2000),
+    stance: z.enum(["matches", "differs", "unsure", "disagree"]),
+  }),
+  z.object({ action: z.literal("lock"), proposalId: z.string().trim().min(1) }),
+  z.object({
+    action: z.literal("record"),
+    proposalId: z.string().trim().min(1),
+    outcome: z.string().trim().min(1).max(300),
+  }),
+]);
+
 export const deleteSessionSchema = z.object({
   confirmCode: z.string().trim().toUpperCase(),
 });

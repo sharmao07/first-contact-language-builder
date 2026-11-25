@@ -201,12 +201,12 @@ async function taskInSession(sessionId: string, taskId: string) {
 }
 
 export async function impactForSession(code: string, token: string | null) {
-  await requireParticipant(code, token);
+  const { session: allowed } = await requireParticipant(code, token);
   const session = await prisma.discoverySession.findUnique({
-    where: { code },
+    where: { id: allowed.id },
     include: { concepts: true, tasks: true, responses: true, experiments: true, events: true },
   });
-  if (!session) throw new HttpError(404, "No session uses that code.");
+  if (!session) throw new HttpError(404, "No session is available for this request.");
   return summarizeImpact({
     illustrative: session.isIllustrative,
     createdAt: session.createdAt.toISOString(),

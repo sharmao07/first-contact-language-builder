@@ -64,9 +64,23 @@ model Participant {
   notes             ResearchNote[]
   events            SessionEvent[]
   independentResponses IndependentResponse[]
+  accessCredentials AccessCredential[]
 
   @@unique([sessionId, role])
   @@index([sessionId])
+}
+
+model AccessCredential {
+  id            String    @id @default(cuid())
+  participantId String
+  participant   Participant @relation(fields: [participantId], references: [id], onDelete: Cascade)
+  tokenHash     String    @unique
+  purpose       String
+  expiresAt     DateTime
+  revokedAt     DateTime?
+  createdAt     DateTime  @default(now())
+
+  @@index([participantId])
 }
 
 model Evidence {
@@ -209,6 +223,7 @@ model VerificationExperiment {
   stimulusKey        String   @default("")
   stimulusVariation  String   @default("")
   contextNote        String   @default("")
+  proposalId         String   @default("")
   status             String   @default("open")
   round              Int      @default(1)
   createdAt   DateTime @default(now())
@@ -391,6 +406,22 @@ model ExperimentProposal {
   source                  String   @default("rules")
   simulated               Boolean  @default(false)
   disclaimer              String   @default("")
+  title                   String   @default("")
+  researchQuestion        String   @default("")
+  competingIdsJson        String   @default("[]")
+  stimuliJson             String   @default("[]")
+  procedure               String   @default("")
+  remainingAmbiguity      String   @default("")
+  limitations             String   @default("")
+  evidenceRefsJson        String   @default("[]")
+  usefulness              String   @default("")
+  heuristicNote           String   @default("")
+  heuristicScore          Float    @default(0)
+  planJson                String   @default("{}")
+  providerNote            String   @default("")
+  repliesJson             String   @default("[]")
+  recordedOutcome         String   @default("")
+  outcomeReviewJson       String   @default("{}")
   approvedByParticipantId String?
   createdExperimentId     String?
   createdAt               DateTime @default(now())

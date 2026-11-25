@@ -1,4 +1,4 @@
-const base = process.env.SMOKE_BASE ?? "http://127.0.0.1:3000";
+const base = process.env.SMOKE_BASE ?? "http://127.0.0.1:3010";
 
 async function call(path, options = {}) {
   const response = await fetch(`${base}${path}`, {
@@ -68,7 +68,7 @@ async function main() {
   if (!hypothesis || hypothesis.status === "accepted") throw new Error("A hypothesis was verified automatically.");
 
   const accepted = await call(`/api/sessions/${created.code}/hypotheses/${hypothesis.id}`, {
-    token: joined.token,
+    token: created.token,
     body: { action: "accept", category: "water", meaning: "Water, the substance" },
   });
   if (accepted.status === "verified") throw new Error("Acceptance verified a meaning with no checks.");
@@ -119,7 +119,9 @@ async function main() {
     },
   });
 
-  const exported = await fetch(`${base}/api/research/export?format=md&code=${created.code}`);
+  const exported = await fetch(`${base}/api/research/export?format=md&code=${created.code}`, {
+    headers: { "x-participant-token": created.token },
+  });
   const report = await exported.text();
   if (!exported.ok || !report.includes("Smoke session")) throw new Error("Markdown export failed.");
 

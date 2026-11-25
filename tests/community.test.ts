@@ -47,6 +47,9 @@ describe("community access", () => {
       { authorParticipantId: "a", lockedAt: locked.lockedAt },
       { authorParticipantId: "b", lockedAt: null },
     ], "respond")).toBe(false);
+    expect(comparisonOpen([
+      { authorParticipantId: "a", lockedAt: locked.lockedAt },
+    ], "test")).toBe(false);
     expect(presentResponse(locked, "b", true).body).toBe(locked.body);
   });
 });

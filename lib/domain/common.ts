@@ -1,24 +1,37 @@
+import { OPAQUE_SESSION, resolvePresented } from "@/lib/access/credentials";
 import { prisma } from "@/lib/database/prisma";
 import { HttpError } from "@/lib/http";
 import { assertSameSession } from "@/lib/session/codes";
 import type { CheckRecord, TestResult } from "@/lib/verification/status";
 import { deriveVerificationStatus } from "@/lib/verification/status";
 
+export { OPAQUE_SESSION };
+
 export async function getSessionByCode(code: string) {
   const session = await prisma.discoverySession.findUnique({ where: { code: code.trim().toUpperCase() } });
-  if (!session) throw new HttpError(404, "No session uses that code.");
+  if (!session) throw new HttpError(404, OPAQUE_SESSION);
   return session;
 }
 
 export async function requireParticipant(code: string, token: string | null) {
-  if (!token) throw new HttpError(401, "Join the session before changing it.");
-  const session = await getSessionByCode(code);
-  const participant = await prisma.participant.findUnique({ where: { token } });
-  if (!participant || participant.sessionId !== session.id) {
-    throw new HttpError(403, "This recovery key does not belong to the session.");
+  const normalized = code.trim().toUpperCase();
+  const [session, resolved] = await Promise.all([
+    prisma.discoverySession.findUnique({ where: { code: normalized } }),
+    resolvePresented(token),
+  ]);
+  if (!session || !resolved || resolved.participant.sessionId !== session.id) {
+    throw new HttpError(404, OPAQUE_SESSION);
   }
-  assertSameSession(participant.sessionId, session.id);
-  if (participant.leftAt) throw new HttpError(403, "You left this session. Rejoin before making changes.");
+  assertSameSession(resolved.participant.sessionId, session.id);
+  if (resolved.failure === "left" || (resolved.failure === "revoked" && resolved.participant.leftAt)) {
+    throw new HttpError(403, "You left this session. Rejoin before continuing.");
+  }
+  if (resolved.failure === "expired") throw new HttpError(401, "This recovery key has expired.");
+  if (resolved.failure === "revoked") throw new HttpError(401, "This recovery key has been replaced.");
+  const participant = await prisma.participant.update({
+    where: { id: resolved.participant.id },
+    data: { lastSeenAt: new Date() },
+  });
   return { session, participant };
 }
 
@@ -68,6 +81,7 @@ export async function refreshConceptStatus(
         experimentType: experiment.type,
         stimulusKey: experiment.stimulusKey || `legacy:${experiment.id}`,
         decisive: true,
+        authorId: response.participantId,
       })),
   );
   const participantAccepted =

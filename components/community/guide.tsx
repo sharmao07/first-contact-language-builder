@@ -157,6 +157,7 @@ function TaskSteps({
           <button type="button" className="btn btn-primary" disabled={pending} onClick={() => onAct({ action: "propose", taskId: task.id })}>Suggest a check</button>
           {proposals.map((proposal) => (
             <article key={proposal.id} className="stack rule">
+              {proposal.title ? <h3>{proposal.title}</h3> : null}
               <p>{proposal.prompt}</p>
               <p className="small">{proposal.rationale}</p>
               <p className="small muted">{proposal.missing}</p>

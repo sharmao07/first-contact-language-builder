@@ -1,3 +1,6 @@
+import type { ExperimentPlan } from "@/lib/experiments/schema";
+import type { EngineSnapshot } from "@/lib/experiments/state";
+
 export type MediaKind = "image" | "drawing" | "audio" | "video" | "gesture" | "note";
 
 export type AnalyzeInput = {
@@ -44,4 +47,5 @@ export type AnalysisResult = {
 export interface AIProvider {
   id: "demo" | "openai";
   analyze(input: AnalyzeInput): Promise<AnalysisResult>;
+  planExperiments(snapshot: EngineSnapshot): Promise<ExperimentPlan>;
 }

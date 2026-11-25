@@ -7,6 +7,7 @@ export type StorageProviderName = "local" | "supabase";
 export type StorageStatus = {
   provider: StorageProviderName;
   configured: boolean;
+  available: boolean;
   persistent: boolean;
   detail: string;
 };
@@ -33,21 +34,27 @@ export function databaseKind() {
 }
 
 export function getObjectStore(): ObjectStore {
-  return storageProviderName() === "supabase" ? supabaseStore : localStore;
+  const provider = storageProviderName();
+  const production = process.env.VERCEL === "1" || databaseKind() === "postgresql";
+  if (production && provider !== "supabase") {
+    throw new HttpError(503, "Production storage is not configured. Local disk is not used as a fallback.");
+  }
+  return provider === "supabase" ? supabaseStore : localStore;
 }
 
 export async function storageStatus(): Promise<StorageStatus> {
   const provider = storageProviderName();
-  const status = await getObjectStore().status();
-  if (databaseKind() === "postgresql" && provider === "local") {
+  const production = process.env.VERCEL === "1" || databaseKind() === "postgresql";
+  if (production && provider !== "supabase") {
     return {
       provider,
       configured: false,
+      available: false,
       persistent: false,
-      detail: "A Postgres deployment cannot keep uploads on local disk. Set STORAGE_PROVIDER=supabase.",
+      detail: "A production deployment cannot keep uploads on local disk. Set STORAGE_PROVIDER=supabase.",
     };
   }
-  return status;
+  return getObjectStore().status();
 }
 
 export async function writeUpload(relative: string, bytes: Buffer, contentType?: string) {

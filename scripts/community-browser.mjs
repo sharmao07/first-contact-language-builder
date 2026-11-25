@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { chromium } from "playwright-core";
 
 const base = process.env.SMOKE_BASE ?? "http://127.0.0.1:3010";
@@ -79,8 +80,8 @@ async function main() {
       data: { confirmCode: code },
     });
     const shore = await pageA.request.get(`${base}/api/sessions/SHORE-1001`);
-    const shoreBody = await shore.json();
-    note("browser session deleted", removed.ok() && shoreBody.concepts?.length === 8, `shore=${shoreBody.concepts?.length}`);
+    const shoreCount = Number(execFileSync("sqlite3", ["data/first-contact.db", "SELECT COUNT(*) FROM Concept WHERE sessionId = (SELECT id FROM DiscoverySession WHERE code = 'SHORE-1001');"], { encoding: "utf8" }).trim());
+    note("browser session deleted", removed.ok() && shore.status() === 404 && shoreCount === 8, `shore=${shoreCount}`);
   } finally {
     await browser.close();
   }

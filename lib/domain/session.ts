@@ -1,3 +1,4 @@
+import { issueCredential, OPAQUE_SESSION, recoveryTtlMs, renewCredential, resolvePresented } from "@/lib/access/credentials";
 import { prisma } from "@/lib/database/prisma";
 import { recordEvent, requireParticipant } from "@/lib/domain/common";
 import { HttpError } from "@/lib/http";
@@ -13,7 +14,6 @@ export async function createSession(input: z.infer<typeof createSessionSchema>) 
     if (!existing) break;
     code = generateSessionCode();
   }
-  const token = createToken();
   const community = input.purpose === "community";
   const communityRole = community ? (input.communityRole ?? "facilitator") : "";
   const seat = community ? (communityRole === "participant" ? "B" : "A") : input.role;
@@ -29,13 +29,14 @@ export async function createSession(input: z.infer<typeof createSessionSchema>) 
           displayName: input.displayName,
           role: seat,
           communityRole,
-          token,
+          token: `pending:${createToken()}`,
         },
       },
     },
     include: { participants: true },
   });
   const participant = session.participants[0];
+  const issued = await issueCredential(participant.id, "recovery", recoveryTtlMs());
   await recordEvent(session.id, {
     type: "session.created",
     message: community
@@ -46,7 +47,8 @@ export async function createSession(input: z.infer<typeof createSessionSchema>) 
   return {
     code: session.code,
     sessionId: session.id,
-    token,
+    token: issued.token,
+    expiresAt: issued.expiresAt.toISOString(),
     participantId: participant.id,
     role: participant.role,
     communityRole: participant.communityRole,
@@ -61,7 +63,7 @@ export async function joinSession(input: z.infer<typeof joinSessionSchema>) {
     where: { code: input.code },
     include: { participants: true },
   });
-  if (!session) throw new HttpError(404, "No session uses that code.");
+  if (!session) throw new HttpError(404, OPAQUE_SESSION);
   if (session.status === "archived") throw new HttpError(400, "That session is archived.");
   const seat = session.participants.find((participant) => participant.role === input.role);
   if (seat && !seat.leftAt) {
@@ -70,7 +72,6 @@ export async function joinSession(input: z.infer<typeof joinSessionSchema>) {
   if (seat?.leftAt) {
     throw new HttpError(409, `That seat is reserved for ${seat.displayName}. Rejoin with the recovery key from the original browser.`);
   }
-  const token = createToken();
   const communityRole = session.purpose === "community" ? (input.role === "A" ? "facilitator" : "participant") : "";
   const participant = await prisma.participant.create({
     data: {
@@ -78,9 +79,10 @@ export async function joinSession(input: z.infer<typeof joinSessionSchema>) {
       displayName: input.displayName,
       role: input.role,
       communityRole,
-      token,
+      token: `pending:${createToken()}`,
     },
   });
+  const issued = await issueCredential(participant.id, "recovery", recoveryTtlMs());
   await recordEvent(session.id, {
     type: "participant.joined",
     message: session.purpose === "community"
@@ -91,7 +93,8 @@ export async function joinSession(input: z.infer<typeof joinSessionSchema>) {
   return {
     code: session.code,
     sessionId: session.id,
-    token,
+    token: issued.token,
+    expiresAt: issued.expiresAt.toISOString(),
     participantId: participant.id,
     role: participant.role,
     displayName: participant.displayName,
@@ -100,19 +103,27 @@ export async function joinSession(input: z.infer<typeof joinSessionSchema>) {
 
 export async function rejoinSession(input: z.infer<typeof rejoinSessionSchema>) {
   if (!isSessionCode(input.code)) throw new HttpError(400, "Session codes look like TREE-4821.");
-  const session = await prisma.discoverySession.findUnique({ where: { code: input.code } });
-  if (!session) throw new HttpError(404, "No session uses that code.");
-  const participant = await prisma.participant.findUnique({ where: { token: input.token } });
-  if (!participant || participant.sessionId !== session.id) {
-    throw new HttpError(403, "That recovery key does not match this session.");
+  const [session, resolved] = await Promise.all([
+    prisma.discoverySession.findUnique({ where: { code: input.code } }),
+    resolvePresented(input.token),
+  ]);
+  if (!session || !resolved || resolved.participant.sessionId !== session.id) {
+    throw new HttpError(404, OPAQUE_SESSION);
   }
+  if (resolved.failure === "revoked") {
+    const newer = resolved.createdAt
+      ? await prisma.accessCredential.count({
+        where: { participantId: resolved.participant.id, createdAt: { gt: resolved.createdAt } },
+      })
+      : 1;
+    if (newer > 0 || !resolved.participant.leftAt) {
+      throw new HttpError(401, "This recovery key has been replaced.");
+    }
+  }
+  const issued = await renewCredential(resolved.participant.id);
   const updated = await prisma.participant.update({
-    where: { id: participant.id },
-    data: {
-      leftAt: null,
-      lastSeenAt: new Date(),
-      displayName: input.displayName?.trim() || participant.displayName,
-    },
+    where: { id: resolved.participant.id },
+    data: { displayName: input.displayName?.trim() || resolved.participant.displayName },
   });
   await recordEvent(session.id, {
     type: "participant.rejoined",
@@ -122,7 +133,8 @@ export async function rejoinSession(input: z.infer<typeof rejoinSessionSchema>) 
   return {
     code: session.code,
     sessionId: session.id,
-    token: updated.token,
+    token: issued.token,
+    expiresAt: issued.expiresAt.toISOString(),
     participantId: updated.id,
     role: updated.role,
     displayName: updated.displayName,
@@ -131,6 +143,10 @@ export async function rejoinSession(input: z.infer<typeof rejoinSessionSchema>) 
 
 export async function leaveSession(code: string, token: string | null) {
   const { session, participant } = await requireParticipant(code, token);
+  await prisma.accessCredential.updateMany({
+    where: { participantId: participant.id, revokedAt: null },
+    data: { revokedAt: new Date() },
+  });
   await prisma.participant.update({ where: { id: participant.id }, data: { leftAt: new Date() } });
   await recordEvent(session.id, {
     type: "participant.left",
@@ -140,16 +156,36 @@ export async function leaveSession(code: string, token: string | null) {
   return { ok: true };
 }
 
-export async function listSessions() {
-  const sessions = await prisma.discoverySession.findMany({
-    orderBy: { updatedAt: "desc" },
-    include: {
-      participants: true,
-      concepts: true,
-      _count: { select: { evidence: true } },
-    },
+export async function listSessionsForToken(token: string | null) {
+  const resolved = await resolvePresented(token);
+  if (!token || !resolved) throw new HttpError(401, "Join a session before looking one up. Session codes are not listed.");
+  if (resolved.failure === "left" || (resolved.failure === "revoked" && resolved.participant.leftAt)) {
+    throw new HttpError(403, "You left this session. Rejoin before continuing.");
+  }
+  if (resolved.failure === "expired") throw new HttpError(401, "This recovery key has expired.");
+  if (resolved.failure === "revoked") throw new HttpError(401, "This recovery key has been replaced.");
+  const session = await prisma.discoverySession.findUnique({
+    where: { id: resolved.participant.sessionId },
+    include: { participants: true, concepts: true, _count: { select: { evidence: true } } },
   });
-  return sessions.map((session) => ({
+  if (!session) return [];
+  return [sessionSummary(session)];
+}
+
+function sessionSummary(session: {
+  id: string;
+  code: string;
+  name: string;
+  description: string;
+  status: string;
+  isDemo: boolean;
+  isIllustrative: boolean;
+  updatedAt: Date;
+  participants: Array<{ displayName: string; role: string; leftAt: Date | null }>;
+  concepts: Array<{ status: string }>;
+  _count: { evidence: number };
+}) {
+  return {
     id: session.id,
     code: session.code,
     name: session.name,
@@ -167,7 +203,7 @@ export async function listSessions() {
     verified: session.concepts.filter((concept) => concept.status === "verified").length,
     pending: session.concepts.filter((concept) => concept.status !== "verified" && concept.status !== "archived").length,
     evidence: session._count.evidence,
-  }));
+  };
 }
 
 export async function updateSession(code: string, token: string | null, input: z.infer<typeof sessionPatchSchema>) {

@@ -1,3 +1,5 @@
+import { execFileSync } from "node:child_process";
+
 const base = process.env.SMOKE_BASE ?? "http://127.0.0.1:3010";
 const failures = [];
 
@@ -127,11 +129,14 @@ async function main() {
   });
   note("10 gesture description", gesture.status === 201, `HTTP ${gesture.status} ${gesture.data?.error ?? ""}`);
 
-  const media = await fetch(`${base}/api/media/${image.data.evidenceId}?code=${code}`);
+  const listed = await call(`/api/sessions/${code}`, { token: tokenA });
+  const imageRow = (listed.data?.evidence ?? []).find((item) => item.id === image.data.evidenceId);
+  const media = await fetch(`${base}${imageRow?.mediaUrl ?? ""}`);
   const mediaBytes = Buffer.from(await media.arrayBuffer());
-  note("11 image retrieval", media.ok && mediaBytes[0] === 0x89, `HTTP ${media.status} bytes=${mediaBytes.length}`);
+  note("11 image retrieval", media.ok && mediaBytes[0] === 0x89 && String(imageRow?.mediaUrl).includes("sig="), `HTTP ${media.status} bytes=${mediaBytes.length}`);
   const foreign = await fetch(`${base}/api/media/${image.data.evidenceId}?code=TREE-0000`);
-  note("cross-session media blocked", foreign.status === 404, `HTTP ${foreign.status}`);
+  const withToken = await fetch(`${base}/api/media/${image.data.evidenceId}`, { headers: { "x-participant-token": tokenA } });
+  note("cross-session media blocked", foreign.status === 404 && withToken.ok, `code=${foreign.status} token=${withToken.status}`);
 
   const analysis = await call(`/api/sessions/${code}/analyze`, {
     token: tokenA,
@@ -145,7 +150,7 @@ async function main() {
   note("14 not auto-verified", (afterAnalysis.data?.concepts ?? []).every((item) => item.status !== "verified"), `concepts=${(afterAnalysis.data?.concepts ?? []).map((item) => item.status).join(",") || "none"}`);
 
   const accepted = await call(`/api/sessions/${code}/hypotheses/${hypothesis.id}`, {
-    token: tokenB,
+    token: tokenA,
     body: { action: "accept", category: "water", meaning: "Water, the substance" },
   });
   note("15 accept hypothesis", accepted.ok && accepted.data?.status !== "verified" && Boolean(accepted.data?.conceptId), `HTTP ${accepted.status} status=${accepted.data?.status}`);
@@ -232,7 +237,9 @@ async function main() {
   const graph = await call(`/api/sessions/${code}`, { token: tokenB });
   note("26 graph", link.ok && (graph.data?.relationships ?? []).some((item) => item.id === link.data?.relationshipId), `HTTP ${link.status} edges=${graph.data?.relationships?.length ?? 0}`);
 
-  const report = await fetch(`${base}/api/research/export?format=md&code=${code}`);
+  const report = await fetch(`${base}/api/research/export?format=md&code=${code}`, {
+    headers: { "x-participant-token": tokenA },
+  });
   const markdown = await report.text();
   note("27 export", report.ok && markdown.includes("Reliability audit") && markdown.includes("Methodology") && !markdown.includes(tokenA), `HTTP ${report.status}`);
 
@@ -241,7 +248,9 @@ async function main() {
   note("28-29 persist after reload", againA.ok && againB.ok && againA.data?.evidence?.length === againB.data?.evidence?.length && againA.data.evidence.length >= 5, `evidence=${againA.data?.evidence?.length}`);
 
   const rejoin = await call("/api/sessions/rejoin", { body: { code, token: tokenA } });
-  note("recovery key", rejoin.ok && rejoin.data?.role === "A" && rejoin.data?.token === tokenA, `HTTP ${rejoin.status}`);
+  const renewed = rejoin.data?.token;
+  const stale = await call(`/api/sessions/${code}`, { token: tokenA });
+  note("recovery key", rejoin.ok && rejoin.data?.role === "A" && Boolean(renewed) && renewed !== tokenA && stale.status === 401, `HTTP ${rejoin.status}`);
 
   const wrongDelete = await call(`/api/sessions/${code}`, {
     method: "DELETE",
@@ -253,12 +262,13 @@ async function main() {
   const shoreBefore = await call("/api/sessions/SHORE-1001");
   const removed = await call(`/api/sessions/${code}`, {
     method: "DELETE",
-    token: tokenA,
+    token: renewed,
     body: { confirmCode: code },
   });
   const gone = await call(`/api/sessions/${code}`);
   const shoreAfter = await call("/api/sessions/SHORE-1001");
-  note("30 delete only the test session", removed.ok && gone.status === 404 && shoreBefore.ok && shoreAfter.ok && shoreAfter.data?.concepts?.length === shoreBefore.data?.concepts?.length, `delete=${removed.status} gone=${gone.status} shore=${shoreAfter.data?.concepts?.length}`);
+  const shoreCount = Number(execFileSync("sqlite3", ["data/first-contact.db", "SELECT COUNT(*) FROM Concept WHERE sessionId = (SELECT id FROM DiscoverySession WHERE code = 'SHORE-1001');"], { encoding: "utf8" }).trim());
+  note("30 delete only the test session", removed.ok && gone.status === 404 && shoreBefore.status === 404 && shoreAfter.status === 404 && shoreCount === 8 && !String(shoreAfter.text).includes("Water"), `delete=${removed.status} gone=${gone.status} shore=${shoreCount}`);
 
   if (failures.length) {
     console.error(`\n${failures.length} journey failure(s).`);

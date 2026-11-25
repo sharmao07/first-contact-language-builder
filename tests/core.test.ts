@@ -46,8 +46,8 @@ describe("verification", () => {
       disputed: false,
       participantAccepted: true,
       checks: [
-        { result: "correct", stimulusKey: "visual:a", experimentType: "visual_discrimination" },
-        { result: "correct", stimulusKey: "contrast:b", experimentType: "contrast_testing" },
+        { result: "correct", stimulusKey: "visual:a", experimentType: "visual_discrimination", authorId: "a" },
+        { result: "correct", stimulusKey: "contrast:b", experimentType: "contrast_testing", authorId: "b" },
       ],
     });
     expect(result.status).toBe("verified");

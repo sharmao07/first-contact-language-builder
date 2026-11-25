@@ -1,10 +1,36 @@
+import { resolvePresented } from "@/lib/access/credentials";
+import { canExportSession, accessRole } from "@/lib/access/policy";
 import { prisma } from "@/lib/database/prisma";
-import { getSessionByCode } from "@/lib/domain/common";
+import { requireParticipant } from "@/lib/domain/common";
+import { redactPrivateEvent } from "@/lib/experiments/privacy";
+import { HttpError } from "@/lib/http";
 import { conceptsToCsv, rowsToCsv, toMarkdown, type ReportConcept, type ReportInput } from "@/lib/research/format";
 
-export async function researchSnapshot(code?: string | null) {
+type ResearchViewer = { sessionId: string; communityRole: string; leftAt: Date | null } | null;
+
+async function researchViewer(token?: string | null): Promise<ResearchViewer> {
+  const resolved = await resolvePresented(token);
+  if (!resolved || resolved.failure) return null;
+  return resolved.participant;
+}
+
+export function communityResearchVisible(purpose: string, sessionId: string, viewer: { sessionId: string; communityRole: string } | null) {
+  if (purpose !== "community") return true;
+  return viewer?.sessionId === sessionId && viewer.communityRole === "facilitator";
+}
+
+export async function authorizeSessionExport(code?: string | null, token?: string | null) {
+  if (!code?.trim()) throw new HttpError(400, "Name the session to export.");
+  const { session, participant } = await requireParticipant(code ?? "", token ?? null);
+  const role = accessRole({ purpose: session.purpose, role: participant.role, communityRole: participant.communityRole });
+  if (!canExportSession(role)) throw new HttpError(403, "Only the facilitator can export this session.");
+  return session;
+}
+
+export async function researchSnapshot(code?: string | null, token?: string | null) {
+  const allowed = await authorizeSessionExport(code, token);
   const sessions = await prisma.discoverySession.findMany({
-    where: code ? { code: code.toUpperCase() } : undefined,
+    where: { id: allowed.id },
     orderBy: { updatedAt: "desc" },
     include: {
       participants: true,
@@ -19,6 +45,7 @@ export async function researchSnapshot(code?: string | null) {
     },
   });
 
+  const viewer = await researchViewer(token);
   const concepts = sessions.flatMap((session) => session.concepts);
   const responses = sessions.flatMap((session) => session.experiments.flatMap((experiment) => experiment.responses));
   const correct = responses.filter((response) => response.result === "correct").length;
@@ -79,7 +106,9 @@ export async function researchSnapshot(code?: string | null) {
           id: event.id,
           sessionCode: session.code,
           type: event.type,
-          message: event.message,
+          message: communityResearchVisible(session.purpose, session.id, viewer)
+            ? event.message
+            : redactPrivateEvent(event.type, event.message, false),
           actor: event.participant?.displayName ?? null,
           createdAt: event.createdAt.toISOString(),
         })),
@@ -121,9 +150,10 @@ function contributionRows(
   );
 }
 
-export async function exportResearch(format: "json" | "csv" | "md", code?: string | null, dataset = "concepts") {
+export async function exportResearch(format: "json" | "csv" | "md", code?: string | null, dataset = "concepts", token?: string | null) {
+  const allowed = await authorizeSessionExport(code, token);
   const sessions = await prisma.discoverySession.findMany({
-    where: code ? { code: code.toUpperCase() } : undefined,
+    where: { id: allowed.id },
     include: {
       participants: true,
       concepts: { include: { experiments: { include: { responses: true } } } },
@@ -163,16 +193,15 @@ export async function exportResearch(format: "json" | "csv" | "md", code?: strin
       experiments: { include: { responses: true, concept: true } },
     },
   });
-  if (code && !sessions.length) {
-    await getSessionByCode(code);
-  }
-  const report = toReport(sessions);
+  const viewer = await researchViewer(token);
+  const hidden = new Set(sessions.filter((session) => !communityResearchVisible(session.purpose, session.id, viewer)).map((session) => session.code));
+  const report = toReport(sessions, hidden);
   if (format === "md") return { body: toMarkdown(report), contentType: "text/markdown; charset=utf-8", filename: "first-contact-report.md" };
   if (format === "csv") {
-    return csvDataset(sessions, report, dataset);
+    return csvDataset(sessions, report, dataset, hidden);
   }
   return {
-    body: JSON.stringify({ generatedAt: report.generatedAt, sessions: publicSessions(sessions, report) }, null, 2),
+    body: JSON.stringify({ generatedAt: report.generatedAt, sessions: publicSessions(sessions, report, hidden) }, null, 2),
     contentType: "application/json; charset=utf-8",
     filename: "first-contact-export.json",
   };
@@ -200,6 +229,7 @@ function toReport(
     notes: Array<{ title: string; body: string; concept: { conceptCode: string } | null }>;
     relationships: Array<{ relationType: string; status: string; fromConcept: { agreedMeaning: string; conceptCode: string }; toConcept: { agreedMeaning: string; conceptCode: string } }>;
   }>,
+  hidden: Set<string> = new Set(),
 ): ReportInput {
   return {
     generatedAt: new Date().toISOString(),
@@ -209,8 +239,10 @@ function toReport(
       illustrative: session.isIllustrative,
       description: session.description,
       participants: session.participants.map((participant) => `${participant.displayName} (${participant.role})`),
-      concepts: session.concepts.map((concept) => conceptReport(concept)),
-      notes: session.notes.map((note) => ({
+      concepts: session.concepts.map((concept) => hidden.has(session.code)
+        ? { ...conceptReport(concept), alternatives: "", notes: "", examples: "" }
+        : conceptReport(concept)),
+      notes: hidden.has(session.code) ? [] : session.notes.map((note) => ({
         title: note.title,
         body: note.body,
         conceptCode: note.concept?.conceptCode ?? null,
@@ -267,6 +299,7 @@ function csvDataset(
   }>,
   report: ReportInput,
   dataset: string,
+  hidden: Set<string> = new Set(),
 ) {
   const conceptCode = new Map<string, string>();
   for (const session of sessions) {
@@ -275,7 +308,7 @@ function csvDataset(
     }
   }
   if (dataset === "hypotheses") {
-    const rows = sessions.flatMap((session) =>
+    const rows = sessions.filter((session) => !hidden.has(session.code)).flatMap((session) =>
       session.hypotheses.map((item) => [
         session.code,
         item.id,
@@ -305,7 +338,7 @@ function csvDataset(
         item.durationMs ?? "",
         item.mimeType ?? "",
         item.byteSize ?? "",
-        item.description,
+        hidden.has(session.code) ? "" : item.description,
         item.createdAt.toISOString(),
       ]),
     );
@@ -318,10 +351,10 @@ function csvDataset(
           session.code,
           experiment.concept.conceptCode,
           experiment.type,
-          experiment.stimulusKey,
-          experiment.stimulusVariation,
+          hidden.has(session.code) ? "" : experiment.stimulusKey,
+          hidden.has(session.code) ? "" : experiment.stimulusVariation,
           response.result,
-          response.notes,
+          hidden.has(session.code) ? "" : response.notes,
           response.createdAt.toISOString(),
         ]),
       ),
@@ -336,7 +369,7 @@ function csvDataset(
         link.toConcept.conceptCode,
         link.relationType,
         link.status,
-        link.notes ?? "",
+        hidden.has(session.code) ? "" : link.notes ?? "",
       ]),
     );
     return file(rowsToCsv(["sessionCode", "from", "to", "relationType", "status", "notes"], rows), "first-contact-relationships.csv");
@@ -363,6 +396,7 @@ function publicSessions(
     hypotheses: Array<{ id: string; proposedMeaning: string; source: string; status: string; simulated: boolean; confidence: number; conceptId: string | null; providerNote: string }>;
   }>,
   report: ReportInput,
+  hidden: Set<string> = new Set(),
 ) {
   return sessions.map((session, index) => ({
     code: session.code,
@@ -379,7 +413,7 @@ function publicSessions(
     evidence: session.evidence.filter((item) => !("deletedAt" in item) || !item.deletedAt).map((item) => ({
       id: item.id,
       type: item.type,
-      description: item.description,
+      description: hidden.has(session.code) ? "" : item.description,
       conceptId: item.conceptId,
       stance: "stance" in item ? item.stance : "observation",
       consentToAnalyze: "consentToAnalyze" in item ? item.consentToAnalyze : false,
@@ -387,6 +421,6 @@ function publicSessions(
       createdAt: item.createdAt.toISOString(),
       deleted: false,
     })),
-    hypotheses: session.hypotheses,
+    hypotheses: hidden.has(session.code) ? [] : session.hypotheses,
   }));
 }

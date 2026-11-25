@@ -1,4 +1,5 @@
-import type { AnalysisResult, AnalyzeInput, HypothesisDraft } from "@/lib/ai/types";
+import { requestExperimentPlan } from "@/lib/ai/plan";
+import type { AnalysisResult, AnalyzeInput, AIProvider, HypothesisDraft } from "@/lib/ai/types";
 
 const DEMO_NOTE =
   "Demo mode. These hypotheses were not produced by inspecting the file. They use only the written description, the evidence type, and the action label.";
@@ -249,9 +250,12 @@ function clip(value: string) {
   return value.length > 180 ? `${value.slice(0, 177)}...` : value;
 }
 
-export const demoProvider = {
-  id: "demo" as const,
+export const demoProvider: AIProvider = {
+  id: "demo",
   async analyze(input: AnalyzeInput) {
     return demoAnalyze(input);
+  },
+  planExperiments(snapshot) {
+    return requestExperimentPlan(snapshot);
   },
 };

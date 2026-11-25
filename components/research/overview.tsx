@@ -4,6 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { SiteHeader } from "@/components/layout/site";
 import { StatusText } from "@/components/ui/bits";
+import { readIdentity } from "@/lib/client/identity";
 
 type Snapshot = {
   localNote: string;
@@ -34,14 +35,23 @@ export function ResearchView({ code }: { code?: string }) {
   const query = code ? `?code=${code}` : "";
 
   useEffect(() => {
-    fetch(`/api/research${query}`)
+    if (!code) {
+      setError("Open a session you facilitate, then use its research page. Exports are not available for every session.");
+      return;
+    }
+    const token = readIdentity(code)?.token;
+    if (!token) {
+      setError("Join that session as the facilitator before opening the research record.");
+      return;
+    }
+    fetch(`/api/research${query}`, { headers: { "x-participant-token": token } })
       .then(async (response) => {
         const body = await response.json();
         if (!response.ok) throw new Error(body.error || "Could not load research.");
         setData(body);
       })
       .catch((caught: Error) => setError(caught.message));
-  }, [query]);
+  }, [code, query]);
 
   return (
     <>
@@ -62,13 +72,13 @@ export function ResearchView({ code }: { code?: string }) {
               <Stat label="Match share" value={data.totals.verificationShare === null ? "No checks" : `${Math.round(data.totals.verificationShare * 100)}%`} detail="Share of recorded checks marked correct. Not a scientific success rate." />
             </div>
             <div className="row">
-              <a className="btn" href={`/api/research/export?format=json${code ? `&code=${code}` : ""}`}>Export JSON</a>
-              <a className="btn" href={`/api/research/export?format=csv&dataset=concepts${code ? `&code=${code}` : ""}`}>Concepts CSV</a>
-              <a className="btn" href={`/api/research/export?format=csv&dataset=hypotheses${code ? `&code=${code}` : ""}`}>Hypotheses CSV</a>
-              <a className="btn" href={`/api/research/export?format=csv&dataset=evidence${code ? `&code=${code}` : ""}`}>Evidence CSV</a>
-              <a className="btn" href={`/api/research/export?format=csv&dataset=checks${code ? `&code=${code}` : ""}`}>Checks CSV</a>
-              <a className="btn" href={`/api/research/export?format=csv&dataset=relationships${code ? `&code=${code}` : ""}`}>Relationships CSV</a>
-              <a className="btn" href={`/api/research/export?format=md${code ? `&code=${code}` : ""}`}>Research report</a>
+              <ExportLink code={code} format="json" label="Export JSON" />
+              <ExportLink code={code} format="csv" dataset="concepts" label="Concepts CSV" />
+              <ExportLink code={code} format="csv" dataset="hypotheses" label="Hypotheses CSV" />
+              <ExportLink code={code} format="csv" dataset="evidence" label="Evidence CSV" />
+              <ExportLink code={code} format="csv" dataset="checks" label="Checks CSV" />
+              <ExportLink code={code} format="csv" dataset="relationships" label="Relationships CSV" />
+              <ExportLink code={code} format="md" label="Research report" />
             </div>
             <h2>Sessions</h2>
             {data.sessions.map((session) => (
@@ -116,6 +126,36 @@ export function ResearchView({ code }: { code?: string }) {
         ) : null}
       </main>
     </>
+  );
+}
+
+function ExportLink({ code, format, dataset, label }: { code?: string; format: string; dataset?: string; label: string }) {
+  const query = new URLSearchParams({ format });
+  if (dataset) query.set("dataset", dataset);
+  if (code) query.set("code", code);
+  return (
+    <a
+      className="btn"
+      href={`/api/research/export?${query.toString()}`}
+      onClick={(event) => {
+        const token = code ? readIdentity(code)?.token : null;
+        if (!token) return;
+        event.preventDefault();
+        void fetch(`/api/research/export?${query.toString()}`, { headers: { "x-participant-token": token } })
+          .then(async (response) => {
+            if (!response.ok) return;
+            const blob = await response.blob();
+            const url = URL.createObjectURL(blob);
+            const link = document.createElement("a");
+            link.href = url;
+            link.download = response.headers.get("content-disposition")?.match(/filename="([^"]+)"/)?.[1] ?? "first-contact-export";
+            link.click();
+            URL.revokeObjectURL(url);
+          });
+      }}
+    >
+      {label}
+    </a>
   );
 }
 

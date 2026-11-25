@@ -2,6 +2,7 @@ import path from "path";
 import { getAIPublicStatus } from "@/lib/ai/config";
 import { getProvider } from "@/lib/ai";
 import { prisma } from "@/lib/database/prisma";
+import { canMutateHypotheses } from "@/lib/access/policy";
 import { conceptInSession, recordEvent, refreshConceptStatus, requireParticipant, summaryFor } from "@/lib/domain/common";
 import { HttpError } from "@/lib/http";
 import { limitBytes } from "@/lib/constants";
@@ -89,19 +90,20 @@ export async function addEvidence(input: {
     const relative = path.posix.join(session.id, `${evidence.id}.${ext}`);
     try {
       await writeUpload(relative, file.bytes, mime);
+      await prisma.evidence.update({
+        where: { id: evidence.id },
+        data: {
+          storagePath: relative,
+          mimeType: mime,
+          fileName: sanitizeName(file.fileName),
+          byteSize: file.bytes.length,
+        },
+      });
     } catch (error) {
-      await prisma.evidence.delete({ where: { id: evidence.id } });
+      await removeUpload(relative);
+      await prisma.evidence.delete({ where: { id: evidence.id } }).catch(() => undefined);
       throw error;
     }
-    await prisma.evidence.update({
-      where: { id: evidence.id },
-      data: {
-        storagePath: relative,
-        mimeType: mime,
-        fileName: sanitizeName(file.fileName),
-        byteSize: file.bytes.length,
-      },
-    });
   }
 
   if (fields.conceptId && fields.stance === "contradictory") {
@@ -125,12 +127,18 @@ export async function addEvidence(input: {
 export async function deleteEvidence(code: string, token: string | null, evidenceId: string) {
   const { session, participant } = await requireParticipant(code, token);
   const evidence = await prisma.evidence.findFirst({ where: { id: evidenceId, sessionId: session.id } });
-  if (!evidence || evidence.deletedAt) throw new HttpError(404, "That evidence is not in this session.");
-  await removeUpload(evidence.storagePath);
+  if (!evidence || (evidence.deletedAt && !evidence.storagePath)) throw new HttpError(404, "That evidence is not in this session.");
   await prisma.evidence.update({
     where: { id: evidence.id },
-    data: { deletedAt: new Date(), storagePath: null },
+    data: { deletedAt: evidence.deletedAt ?? new Date() },
   });
+  if (evidence.storagePath) {
+    await removeUpload(evidence.storagePath);
+    await prisma.evidence.update({
+      where: { id: evidence.id },
+      data: { storagePath: null },
+    });
+  }
   await recordEvent(session.id, {
     type: "evidence.deleted",
     message: `${participant.displayName} deleted ${evidence.type} evidence.`,
@@ -268,10 +276,17 @@ export async function addParticipantHypothesis(code: string, token: string | nul
   return { hypothesisId: hypothesis.id };
 }
 
+function assertHypothesisEditor(session: { purpose: string }, participant: { role: string; communityRole: string }) {
+  if (!canMutateHypotheses({ purpose: session.purpose, role: participant.role, communityRole: participant.communityRole })) {
+    throw new HttpError(403, "Only the facilitator can change a hypothesis.");
+  }
+}
+
 export async function respondToHypothesis(code: string, token: string | null, hypothesisId: string, input: z.infer<typeof hypothesisResponseSchema>) {
   const { session, participant } = await requireParticipant(code, token);
+  assertHypothesisEditor(session, participant);
   const hypothesis = await prisma.conceptHypothesis.findFirst({ where: { id: hypothesisId, sessionId: session.id } });
-  if (!hypothesis) throw new HttpError(404, "That hypothesis is not in this session.");
+  if (!hypothesis) throw new HttpError(404, "That hypothesis is not available.");
 
   if (input.action === "reject") {
     await prisma.conceptHypothesis.update({ where: { id: hypothesis.id }, data: { status: "rejected" } });
@@ -356,6 +371,7 @@ export async function respondToHypothesis(code: string, token: string | null, hy
 
 export async function createConcept(code: string, token: string | null, input: z.infer<typeof conceptCreateSchema>) {
   const { session, participant } = await requireParticipant(code, token);
+  assertHypothesisEditor(session, participant);
   const existing = await prisma.concept.findMany({ where: { sessionId: session.id }, select: { conceptCode: true } });
   const concept = await prisma.concept.create({
     data: {

@@ -1,3 +1,4 @@
+import { requestLivePlan } from "@/lib/ai/plan";
 import { aiTimeoutMs } from "@/lib/ai/config";
 import { analysisSchema } from "@/lib/ai/schema";
 import type { AnalysisResult, AnalyzeInput, AIProvider } from "@/lib/ai/types";
@@ -119,6 +120,9 @@ export const openAIProvider: AIProvider = {
       followUps: checked.data.followUps,
       hypotheses: checked.data.hypotheses,
     };
+  },
+  planExperiments(snapshot) {
+    return requestLivePlan(snapshot);
   },
 };
 

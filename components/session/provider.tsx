@@ -9,6 +9,8 @@ type SyncResponse = {
   revision: number;
   state: SessionState | null;
   presence: ParticipantDTO[];
+  mediaUrls?: Record<string, string>;
+  transport?: "stream" | "poll";
 };
 
 type SessionApi = {
@@ -57,11 +59,13 @@ export function SessionProvider({ code, children }: { code: string; children: Re
         const data = await api<SyncResponse>(`/api/sessions/${code}/sync?revision=${revisionRef.current}`, {
           token: identity?.token,
         });
-        if (stop) return;
+        if (stop) return null;
         apply(data);
         setError(null);
+        return data;
       } catch (caught) {
         if (!stop) setError(caught instanceof ApiError ? caught.message : "The session could not be loaded.");
+        return null;
       } finally {
         if (!stop) setLoading(false);
       }
@@ -71,26 +75,38 @@ export function SessionProvider({ code, children }: { code: string; children: Re
       if (data.state) {
         revisionRef.current = data.state.session.revision;
         setState(data.state);
-      } else if (data.presence) {
-        setState((current) => (current ? { ...current, participants: data.presence } : current));
+        return;
       }
+      setState((current) => {
+        if (!current) return current;
+        const evidence = data.mediaUrls
+          ? current.evidence.map((item) => (data.mediaUrls?.[item.id] ? { ...item, mediaUrl: data.mediaUrls[item.id] } : item))
+          : current.evidence;
+        return { ...current, evidence, participants: data.presence ?? current.participants };
+      });
     }
 
     async function listen() {
-      if (!identity?.token) {
+      const first = await pull();
+      if (stop) return;
+      if (!identity?.token || first?.transport === "poll") {
         setSyncMode("polling");
-        await pull();
         pollTimer = window.setInterval(() => void pull(), 2500);
         return;
       }
-      await pull();
-      if (stop) return;
       try {
         const response = await fetch(`/api/sessions/${code}/stream?revision=${revisionRef.current}`, {
           headers: { "x-participant-token": identity.token },
           signal: abort.signal,
         });
         if (!response.ok || !response.body) throw new Error("stream");
+        if ((response.headers.get("content-type") ?? "").includes("application/json")) {
+          const body = await response.json() as SyncResponse;
+          if (body.transport !== "poll") throw new Error("stream");
+          setSyncMode("polling");
+          pollTimer = window.setInterval(() => void pull(), 2500);
+          return;
+        }
         setSyncMode("live");
         const reader = response.body.getReader();
         const decoder = new TextDecoder();

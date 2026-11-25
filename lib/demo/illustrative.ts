@@ -299,6 +299,7 @@ function statusFor(accepted: boolean, disputed: boolean, results: TestResult[]) 
       result,
       stimulusKey: `${types[index % types.length]}:${index}`,
       experimentType: types[index % types.length],
+      authorId: index % 2 === 0 ? "participant-a" : "participant-b",
     })),
   });
 }

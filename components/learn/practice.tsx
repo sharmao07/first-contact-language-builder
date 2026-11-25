@@ -31,7 +31,7 @@ export function Practice() {
   return (
     <div className="wrap section stack">
       <h1>Practice</h1>
-      <p>Activities are built only from tentatively accepted or session-verified entries in this session. Disputed meanings and bare AI hypotheses are left out. A miss is kept as evidence of ambiguity, with a clarification, rather than treated as a failed grade. Illustrative demo answers stay inside the sample session and are labeled there.</p>
+      <p>Activities are built only from tentatively accepted or session-verified entries in this session. Practice here is solo: your own match stays with you, and the other person does not receive whether your answer matched. Disputed meanings and bare AI hypotheses are left out. A miss is kept as evidence of ambiguity, with a clarification, rather than treated as a failed grade. Illustrative demo answers stay inside the sample session and are labeled there.</p>
       {repeatedMisses(responses).map((item) => (
         <Notice key={item.conceptId}>The same concept has been missed {item.count} times. That pattern is a reason to reopen the meaning, not to mark the person wrong.</Notice>
       ))}

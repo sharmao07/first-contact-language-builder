@@ -175,34 +175,37 @@ The smoke script creates a session, joins a second seat, uploads an image, check
 
 ## Production data
 
-Local development stays on SQLite (`DATABASE_URL=file:../data/first-contact.db`) and stores uploads in `data/uploads`. That disk is not durable on Vercel. A serverless function also has no `DATABASE_URL` until one is added, so `/api/sessions` cannot create a session there yet.
+Local development stays on SQLite (`DATABASE_URL=file:../data/first-contact.db`) and stores uploads in `data/uploads`. Vercel cannot keep that disk or that file. The Vercel project currently has no database or storage variables, so production session creation still fails until those values exist. The setup sequence is in `SUPABASE-SETUP.md`. `npm run env:check` reports missing names and does not print values.
 
-Production is prepared for Supabase Postgres and a private Supabase Storage bucket. The service-role key is read only on the server. No Supabase project is connected in this repository, and production has not been switched over.
+Use a separate Supabase project for Preview and for Production. Set the same variable names on each Vercel environment with different values. Do not point Preview at the Production database.
 
-Set these in the Vercel project, not in client code:
+| Name | Development | Preview and Production |
+| --- | --- | --- |
+| `DATABASE_URL` | `file:../data/first-contact.db` | Supabase pooler, port 6543, `?pgbouncer=true&connection_limit=1` |
+| `DIRECT_URL` | unset | Supabase direct connection, port 5432. Prisma uses this for migrations. |
+| `STORAGE_PROVIDER` | `local` | `supabase` |
+| `SUPABASE_URL` | empty | Project URL, server only |
+| `SUPABASE_SERVICE_ROLE_KEY` | empty | Server only. Never use a `NEXT_PUBLIC` name. |
+| `SUPABASE_STORAGE_BUCKET` | `session-media` | A private bucket. A public bucket fails the storage check. |
+| `MEDIA_SIGNING_SECRET` | optional | At least 16 characters. Media links expire after 15 minutes unless `MEDIA_URL_TTL_SECONDS` is set. |
 
-| Name | Purpose |
-| --- | --- |
-| `DATABASE_URL` | Pooled Postgres URL, with `pgbouncer=true` and a small connection limit. |
-| `DIRECT_URL` | Direct Postgres URL, used by Prisma for schema changes. |
-| `STORAGE_PROVIDER` | `supabase` |
-| `SUPABASE_URL` | Project URL. |
-| `SUPABASE_SERVICE_ROLE_KEY` | Server-only key. Never prefix it with `NEXT_PUBLIC`. |
-| `SUPABASE_STORAGE_BUCKET` | Private bucket name, default `session-media`. |
+The service-role key is read only by server code. The browser receives a signed application URL, or sends the participant token, and this server reads the private object.
 
-Then create the tables without touching the local database:
+Apply the checked-in SQL migration to an empty database. This does not reset a database that already has rows, and it does not touch SQLite:
 
 ```bash
-./node_modules/.bin/prisma db push --schema prisma/schema.postgresql.prisma
+npm run db:migrate
 ```
 
-`npm run db:copy` prints row counts and stops. It copies into an empty Postgres database only when `CONFIRM_DATA_COPY=yes` and the `pg` package is installed. It does not delete the SQLite file. `npm run db:seed` replaces the illustrative `SHORE-1001` session, so do not seed after a copy if those rows should remain as they are.
+`npm run db:copy` prints local row counts and stops. With `CONFIRM_DATA_COPY=yes` it copies into an empty Postgres database through `DIRECT_URL`, then uploads `data/uploads` when storage is Supabase. It refuses to write if Postgres already has sessions. It does not delete the SQLite file or the local uploads. `npm run db:seed` replaces the illustrative `SHORE-1001` session, so do not seed after a copy.
 
-`/api/health` returns 503 when the database is unreachable or storage is not persistent. It does not include credentials.
+`/api/health` checks the database, storage, and media signing separately. It returns 503 unless all three are usable, and it does not include credentials.
+
+On Vercel the session view polls `/api/sessions/[code]/sync`. The server-sent stream stays available for the local Node server and closes itself after 45 seconds. A Vercel function cannot hold that stream open for a whole session.
 
 ## Known limitations
 
-- Joined seats receive server-sent updates about once a second, with polling as a fallback if the stream drops. A quiet seat still shows as quiet after about 12 seconds without a heartbeat.
+- Locally, joined seats receive server-sent updates about once a second, with polling if the stream drops. On Vercel, seats poll about every 2.5 seconds. A quiet seat still shows as quiet after about 12 seconds without a heartbeat.
 - Only two seats exist, A and B. A seat left behind stays reserved for its recovery key.
 - The recovery key lives in the browser's local storage. Losing it means that seat cannot be reclaimed.
 - The session code is the access secret for this local installation. Anyone who can open the server and knows the code can read that session.

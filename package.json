@@ -6,6 +6,8 @@
     "dev": "next dev",
     "build": "node scripts/prepare-prisma.mjs && next build",
     "db:copy": "node scripts/copy-sqlite-to-postgres.mjs",
+    "db:migrate": "node scripts/migrate-postgres.mjs",
+    "env:check": "node scripts/check-env.mjs",
     "start": "next start",
     "lint": "eslint .",
     "typecheck": "tsc --noEmit",
@@ -35,6 +37,7 @@
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@electric-sql/pglite": "^0.6.0",
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
@@ -42,6 +45,7 @@
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "^15.5.29",
+    "pg": "^8.23.1",
     "playwright-core": "^1.65.1",
     "prisma": "^6.19.0",
     "tailwindcss": "^4",
