@@ -64,13 +64,13 @@ export async function joinSession(input: z.infer<typeof joinSessionSchema>) {
     include: { participants: true },
   });
   if (!session) throw new HttpError(404, OPAQUE_SESSION);
-  if (session.status === "archived") throw new HttpError(400, "That session is archived.");
+  if (session.status === "archived") throw new HttpError(404, OPAQUE_SESSION);
   const seat = session.participants.find((participant) => participant.role === input.role);
   if (seat && !seat.leftAt) {
-    throw new HttpError(409, `Participant ${input.role} is already ${seat.displayName}. Use the other seat, or rejoin if that is you.`);
+    throw new HttpError(409, `Seat ${input.role} is already occupied. Choose the other seat, or rejoin with your recovery key.`);
   }
   if (seat?.leftAt) {
-    throw new HttpError(409, `That seat is reserved for ${seat.displayName}. Rejoin with the recovery key from the original browser.`);
+    throw new HttpError(409, "That seat is reserved. Rejoin with the recovery key from the original browser.");
   }
   const communityRole = session.purpose === "community" ? (input.role === "A" ? "facilitator" : "participant") : "";
   const participant = await prisma.participant.create({

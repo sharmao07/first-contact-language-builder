@@ -1,8 +1,14 @@
 import { createHash } from "crypto";
 import { prisma } from "@/lib/database/prisma";
 import { createToken } from "@/lib/session/codes";
+import { isHostedDeployment } from "@/lib/storage";
 
 export const OPAQUE_SESSION = "No session is available for this request.";
+
+const PUBLIC_SAMPLE_TOKENS = new Set([
+  "demo-shore-1001-participant-a",
+  "demo-shore-1001-participant-b",
+]);
 
 export type CredentialFailure = "expired" | "revoked" | "left";
 
@@ -88,13 +94,14 @@ export async function renewCredential(participantId: string) {
 
 export async function resolvePresented(token: string | null | undefined): Promise<ResolvedCredential | null> {
   const presented = token?.trim() ?? "";
+  const hosted = isHostedDeployment();
   const hashed = hashToken(presented || "missing");
   const [credential, legacy] = await Promise.all([
     prisma.accessCredential.findUnique({
       where: { tokenHash: hashed },
       include: { participant: true },
     }),
-    presented.length >= 8 && !presented.startsWith("issued:")
+    !hosted && presented.length >= 8 && !presented.startsWith("issued:")
       ? prisma.participant.findUnique({ where: { token: presented } })
       : prisma.participant.findFirst({ where: { id: "missing-token-placeholder" } }),
   ]);
@@ -114,7 +121,9 @@ export async function resolvePresented(token: string | null | undefined): Promis
       createdAt: credential.createdAt,
     };
   }
-  if (!legacy || presented.startsWith("issued:")) return null;
+  if (hosted || !legacy || presented.startsWith("issued:") || PUBLIC_SAMPLE_TOKENS.has(presented)) {
+    return null;
+  }
   return {
     participant: legacy,
     failure: legacy.leftAt ? "left" : null,

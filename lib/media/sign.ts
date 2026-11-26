@@ -1,5 +1,5 @@
 import crypto from "node:crypto";
-import { databaseKind } from "@/lib/storage";
+import { isHostedDeployment } from "@/lib/storage";
 
 const LOCAL_KEY = "local-development-only-media-key";
 const DEFAULT_TTL_SECONDS = 15 * 60;
@@ -13,8 +13,7 @@ export function mediaTtlSeconds() {
 export function mediaKey() {
   const secret = process.env.MEDIA_SIGNING_SECRET?.trim() ?? "";
   if (secret.length >= 16) return secret;
-  const production = process.env.VERCEL === "1" || databaseKind() === "postgresql";
-  if (production) return null;
+  if (isHostedDeployment()) return null;
   return LOCAL_KEY;
 }
 

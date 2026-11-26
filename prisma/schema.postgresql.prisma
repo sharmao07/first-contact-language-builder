@@ -429,3 +429,12 @@ model ExperimentProposal {
   @@index([sessionId])
   @@index([taskId])
 }
+
+model RateLimitBucket {
+  key       String   @id
+  count     Int      @default(0)
+  expiresAt DateTime
+  updatedAt DateTime @updatedAt
+
+  @@index([expiresAt])
+}

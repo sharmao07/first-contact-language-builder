@@ -2,7 +2,7 @@ import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { HttpError } from "@/lib/http";
 
-const DATABASE_CODES = new Set(["P1000", "P1001", "P1003", "P1010", "P1011", "P1017"]);
+const DATABASE_CODES = new Set(["P1000", "P1001", "P1003", "P1010", "P1011", "P1017", "P2021"]);
 
 export function redactSecrets(message: string) {
   return message
@@ -18,8 +18,8 @@ export function databaseUnavailable(error: unknown) {
   return name.includes("PrismaClientInitializationError") || DATABASE_CODES.has(code);
 }
 
-export function json(data: unknown, status = 200) {
-  return NextResponse.json(data, { status });
+export function json(data: unknown, status = 200, headers?: Record<string, string>) {
+  return NextResponse.json(data, { status, ...(headers ? { headers } : {}) });
 }
 
 export function readToken(request: Request) {
@@ -30,7 +30,7 @@ export async function run(work: () => Promise<Response>) {
   try {
     return await work();
   } catch (error) {
-    if (error instanceof HttpError) return json({ error: error.message }, error.status);
+    if (error instanceof HttpError) return json({ error: error.message }, error.status, error.headers);
     if (error instanceof ZodError) {
       const message = error.issues.map((issue) => issue.message).join(" ");
       return json({ error: message || "Invalid input." }, 400);

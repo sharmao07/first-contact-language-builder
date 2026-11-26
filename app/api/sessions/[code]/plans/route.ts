@@ -8,6 +8,7 @@ import {
   replyToExperimentPlan,
   requestExperimentPlans,
 } from "@/lib/domain/plans";
+import { enforceRateLimit } from "@/lib/security/rate-limit";
 import { planActionSchema } from "@/lib/validation/schemas";
 
 export const runtime = "nodejs";
@@ -16,9 +17,16 @@ export const dynamic = "force-dynamic";
 export function POST(request: Request, context: { params: Promise<{ code: string }> }) {
   return run(async () => {
     const { code } = await context.params;
-    const input = planActionSchema.parse(await request.json());
     const token = readToken(request);
-    if (input.action === "request") return json(await requestExperimentPlans(code, token, input));
+    const input = planActionSchema.parse(await request.json());
+    if (input.action === "request") {
+      const limit = await enforceRateLimit({ action: "ai_plan", request, code, token });
+      return json(await requestExperimentPlans(code, token, input), 200, {
+        "X-RateLimit-Limit": String(limit.limit),
+        "X-RateLimit-Remaining": String(limit.remaining),
+        "X-RateLimit-Reset": String(limit.resetAtSeconds),
+      });
+    }
     if (input.action === "reject") return json(await rejectExperimentPlan(code, token, input.proposalId));
     if (input.action === "edit") return json(await editExperimentPlan(code, token, input));
     if (input.action === "approve") return json(await approveExperimentPlan(code, token, input));

@@ -1,6 +1,7 @@
 import { getAIMode } from "@/lib/ai/config";
 import { prisma } from "@/lib/database/prisma";
 import { mediaSigningStatus } from "@/lib/media/sign";
+import { rateLimitStatus, type RateLimitStatus } from "@/lib/security/rate-limit";
 import { databaseKind, storageStatus, type StorageStatus } from "@/lib/storage";
 import { syncTransport } from "@/lib/sync/transport";
 
@@ -9,9 +10,10 @@ export type HealthReport = {
   mode: "demo" | "openai";
   application: { ready: boolean };
   environment: string;
-  database: { connected: boolean; provider: "sqlite" | "postgresql" | "unknown" };
+  database: { connected: boolean; migrated: boolean; provider: "sqlite" | "postgresql" | "unknown" };
   storage: StorageStatus;
   media: { configured: boolean; detail: string };
+  rateLimit: RateLimitStatus;
   sync: { transport: "stream" | "poll" };
   ai: { mode: "demo" | "openai"; configured: boolean; available: boolean; detail: string };
 };
@@ -19,9 +21,15 @@ export type HealthReport = {
 async function probeDatabase() {
   try {
     await prisma.$queryRaw`SELECT 1`;
-    return true;
   } catch {
-    return false;
+    return { connected: false, migrated: false };
+  }
+  try {
+    await prisma.$queryRaw`SELECT 1 FROM "DiscoverySession" LIMIT 1`;
+    await prisma.$queryRaw`SELECT 1 FROM "RateLimitBucket" LIMIT 1`;
+    return { connected: true, migrated: true };
+  } catch {
+    return { connected: true, migrated: false };
   }
 }
 
@@ -62,17 +70,31 @@ export function healthHttpStatus(report: { ok: boolean }) {
 }
 
 export async function buildHealthReport(): Promise<HealthReport> {
-  const [connected, storage, ai] = await Promise.all([probeDatabase(), storageStatus(), probeAI()]);
+  const [db, storage, rateLimit, ai] = await Promise.all([
+    probeDatabase(),
+    storageStatus(),
+    rateLimitStatus(),
+    probeAI(),
+  ]);
   const media = mediaSigningStatus();
-  const ok = connected && storage.configured && storage.available && storage.persistent && media.configured;
+  const ok =
+    db.connected &&
+    db.migrated &&
+    storage.configured &&
+    storage.available &&
+    storage.persistent &&
+    media.configured &&
+    rateLimit.configured &&
+    rateLimit.available;
   return {
     ok,
     mode: ai.mode,
     application: { ready: ok },
     environment: process.env.VERCEL_ENV === "preview" || process.env.VERCEL_ENV === "production" ? process.env.VERCEL_ENV : "development",
-    database: { connected, provider: databaseKind() },
+    database: { connected: db.connected, migrated: db.migrated, provider: databaseKind() },
     storage,
     media,
+    rateLimit,
     sync: { transport: syncTransport() },
     ai,
   };

@@ -33,10 +33,18 @@ export function databaseKind() {
   return "unknown";
 }
 
+export function isHostedDeployment() {
+  return (
+    process.env.VERCEL === "1" ||
+    process.env.VERCEL_ENV === "production" ||
+    process.env.VERCEL_ENV === "preview" ||
+    databaseKind() === "postgresql"
+  );
+}
+
 export function getObjectStore(): ObjectStore {
   const provider = storageProviderName();
-  const production = process.env.VERCEL === "1" || databaseKind() === "postgresql";
-  if (production && provider !== "supabase") {
+  if (isHostedDeployment() && provider !== "supabase") {
     throw new HttpError(503, "Production storage is not configured. Local disk is not used as a fallback.");
   }
   return provider === "supabase" ? supabaseStore : localStore;
@@ -44,8 +52,7 @@ export function getObjectStore(): ObjectStore {
 
 export async function storageStatus(): Promise<StorageStatus> {
   const provider = storageProviderName();
-  const production = process.env.VERCEL === "1" || databaseKind() === "postgresql";
-  if (production && provider !== "supabase") {
+  if (isHostedDeployment() && provider !== "supabase") {
     return {
       provider,
       configured: false,

@@ -1,5 +1,6 @@
 import { json, readToken, run } from "@/lib/api/handlers";
 import { addEvidence } from "@/lib/domain/discovery";
+import { enforceRateLimit } from "@/lib/security/rate-limit";
 import { evidenceFieldsSchema } from "@/lib/validation/schemas";
 
 export const runtime = "nodejs";
@@ -8,6 +9,8 @@ export const dynamic = "force-dynamic";
 export function POST(request: Request, context: { params: Promise<{ code: string }> }) {
   return run(async () => {
     const { code } = await context.params;
+    const token = readToken(request);
+    const limit = await enforceRateLimit({ action: "evidence_upload", request, code, token });
     const form = await request.formData();
     const action = String(form.get("actionCategory") ?? "");
     const conceptId = String(form.get("conceptId") ?? "");
@@ -38,6 +41,10 @@ export function POST(request: Request, context: { params: Promise<{ code: string
         fileName: file.name,
       };
     }
-    return json(await addEvidence({ code, token: readToken(request), fields, file: uploaded }), 201);
+    return json(await addEvidence({ code, token, fields, file: uploaded }), 201, {
+      "X-RateLimit-Limit": String(limit.limit),
+      "X-RateLimit-Remaining": String(limit.remaining),
+      "X-RateLimit-Reset": String(limit.resetAtSeconds),
+    });
   });
 }
