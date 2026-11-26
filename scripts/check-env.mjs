@@ -77,8 +77,8 @@ export function assessEnvironment(env, target = "development") {
     if (direct) problems.push("DIRECT_URL must stay unset while local development uses SQLite.");
   } else if (target === "preview" || target === "production") {
     if (!postgres(database)) problems.push("DATABASE_URL must be the pooled Postgres URL.");
-    else if (!database.includes("pgbouncer=true") || !database.includes("connection_limit=1")) {
-      problems.push("DATABASE_URL must include pgbouncer=true and connection_limit=1.");
+    else if (!database.includes("pgbouncer=true") || !/[?&]connection_limit=([1-9]|1[0-9]|20)\b/.test(database)) {
+      problems.push("DATABASE_URL must include pgbouncer=true and connection_limit (1-20, e.g. connection_limit=5).");
     }
     if (!postgres(direct)) problems.push("DIRECT_URL must be the direct Postgres URL.");
     else if (direct.includes("pgbouncer=true") || direct.includes(":6543")) {
