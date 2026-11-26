@@ -198,6 +198,9 @@ export function ConceptGraph() {
         <button type="button" className="btn" onClick={() => setFocus((value) => !value)} disabled={!selected}>
           {focus ? "Show the full graph" : "Focus on the selection"}
         </button>
+        <button type="button" className="btn" onClick={() => setView((current) => ({ ...current, k: Math.min(2.4, current.k * 1.15) }))}>Zoom in</button>
+        <button type="button" className="btn" onClick={() => setView((current) => ({ ...current, k: Math.max(0.45, current.k / 1.15) }))}>Zoom out</button>
+        <button type="button" className="btn" onClick={() => setView({ x: 0, y: 0, k: 1 })}>Reset view</button>
       </div>
       {!concepts.length ? (
         <p>No concepts in this session yet. Relationships appear after concepts exist.</p>
@@ -206,7 +209,13 @@ export function ConceptGraph() {
           className="graph-svg"
           viewBox="0 0 720 620"
           role="img"
-          aria-label="Concept relationship graph"
+          aria-label="Concept relationship graph. Scroll to zoom. Plus, minus, and zero change the view when this graph is focused."
+          tabIndex={0}
+          onKeyDown={(event) => {
+            if (event.key === "+" || event.key === "=") setView((current) => ({ ...current, k: Math.min(2.4, current.k * 1.15) }));
+            if (event.key === "-" || event.key === "_") setView((current) => ({ ...current, k: Math.max(0.45, current.k / 1.15) }));
+            if (event.key === "0") setView({ x: 0, y: 0, k: 1 });
+          }}
           onWheel={(event) => {
             event.preventDefault();
             const next = Math.min(2.4, Math.max(0.45, view.k * (event.deltaY > 0 ? 0.92 : 1.08)));
@@ -347,7 +356,7 @@ export function ConceptGraph() {
           {current ? (
             <div className="stack-sm">
               <h3>{current.agreedMeaning}</h3>
-              <StatusText status={current.status} />
+              <StatusText status={current.status} reason={current.statusReason} />
               <p className="small">{current.category}</p>
               <Link href={`/session/${code}/concept/${current.id}`}>Open the evidence</Link>
             </div>

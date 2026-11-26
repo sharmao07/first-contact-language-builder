@@ -77,7 +77,7 @@ export function ExperimentEngine() {
       <header className="stack-sm">
         <p className="eyebrow">Experiment checks</p>
         <h1>What could still be true</h1>
-        <p>A check is a way to tell two readings apart. It does not choose the meaning, and one result cannot session-verify it.</p>
+        <p>Observe, keep the competing guesses, plan a check that names what each result would support or weaken, then collect the two replies separately. A check does not choose the meaning, and one result cannot session-verify it.</p>
       </header>
 
       {facilitator ? (
@@ -227,7 +227,7 @@ function CheckDetail({
             <button type="button" className="btn" disabled={pending} onClick={() => void onAct({ action: "reply", proposalId: proposal.id, body: draft || own?.body || "It matches.", stance: "matches" })}>It matches</button>
             <button type="button" className="btn" disabled={pending} onClick={() => void onAct({ action: "reply", proposalId: proposal.id, body: draft || own?.body || "It does not match.", stance: "differs" })}>It does not match</button>
             <button type="button" className="btn" disabled={pending} onClick={() => void onAct({ action: "reply", proposalId: proposal.id, body: draft || own?.body || "We disagree.", stance: "disagree" })}>We disagree</button>
-            <button type="button" className="btn btn-primary" disabled={pending || !(draft.trim() || own?.body)} onClick={() => void onAct({ action: "lock", proposalId: proposal.id })}>Lock my response</button>
+            <button type="button" className="btn btn-primary" aria-busy={pending} disabled={pending || Boolean(own?.lockedAt) || !(draft.trim() || own?.body)} onClick={() => void onAct({ action: "lock", proposalId: proposal.id })}>{own?.lockedAt ? "Response locked" : "Lock my response"}</button>
           </div>
         </form>
       ) : null}
@@ -236,7 +236,7 @@ function CheckDetail({
         <div className="stack">
           <h3>Responses</h3>
           {proposal.replies.map((reply) => (
-            <p key={reply.participantId}>{reply.hidden ? "Locked. Hidden until both responses are in." : `${reply.stance || "response"}: ${reply.body}`}</p>
+            <p key={reply.participantId} className={reply.hidden ? "reply-sealed" : "reply-open"}>{reply.hidden ? "Locked. Hidden until both responses are in." : `${reply.stance || "response"}: ${reply.body}`}</p>
           ))}
         </div>
       ) : null}

@@ -16,7 +16,8 @@ export function ExpressionBuilder() {
   const [picked, setPicked] = useState<string[]>([]);
   const [message, setMessage] = useState<string | null>(null);
   if (!state || !identity) return null;
-  const concepts = state.concepts.filter((concept) => concept.agreedMeaning && concept.status !== "archived");
+  const concepts = state.concepts.filter((concept) => concept.agreedMeaning && concept.status === "verified");
+  const uncertain = state.concepts.filter((concept) => concept.agreedMeaning && concept.status !== "archived" && concept.status !== "verified");
 
   function toggle(id: string) {
     setPicked((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
@@ -36,7 +37,7 @@ export function ExpressionBuilder() {
   return (
     <div className="wrap section stack">
       <h1>Expression trials</h1>
-      <p>Combine concepts the session already has. The order you try is an experiment. It is not a grammatical rule of an undocumented language.</p>
+      <p>Combine meanings this session has verified. The order you try is an experiment. It is not a grammatical rule, and it is not a translation. Unresolved meanings stay off the trial.</p>
       <form
         className="stack"
         onSubmit={async (event) => {
@@ -70,6 +71,15 @@ export function ExpressionBuilder() {
         <Field label="Counterexample">
           <input className="control" value={counterexample} onChange={(event) => setCounterexample(event.target.value)} />
         </Field>
+        {concepts.length === 0 ? <p className="small">No session-verified meanings yet. A trial waits until two people have matched a meaning on different examples and methods.</p> : null}
+        {uncertain.length > 0 ? (
+          <div className="stack-sm">
+            <p className="small">Still uncertain, so not available for a trial:</p>
+            {uncertain.map((concept) => (
+              <p key={concept.id} className="small">{concept.agreedMeaning} · <StatusText status={concept.status} reason={concept.statusReason} /></p>
+            ))}
+          </div>
+        ) : null}
         <div className="stack-sm">
           {concepts.map((concept) => (
             <label key={concept.id} className="small">

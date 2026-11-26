@@ -26,7 +26,7 @@ export function ConceptDetail({ id }: { id: string }) {
     <div className="wrap section stack">
       <p className="mono small">{concept.conceptCode}</p>
       <h1>{concept.agreedMeaning || "Unnamed concept"}</h1>
-      <StatusText status={concept.status} />
+      <StatusText status={concept.status} reason={concept.statusReason} />
       <p>{concept.statusReason}</p>
       <p className="small">Created {new Date(concept.createdAt).toLocaleString()}. Updated {new Date(concept.updatedAt).toLocaleString()}.</p>
       {concept.aiConfidence !== null ? <p className="small">AI-estimated confidence on record: {concept.aiConfidence.toFixed(2)}. Not a measured probability.</p> : null}

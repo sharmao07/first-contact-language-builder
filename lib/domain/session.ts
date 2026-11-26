@@ -98,6 +98,7 @@ export async function joinSession(input: z.infer<typeof joinSessionSchema>) {
     participantId: participant.id,
     role: participant.role,
     displayName: participant.displayName,
+    purpose: session.purpose,
   };
 }
 

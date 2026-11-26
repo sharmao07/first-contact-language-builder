@@ -24,7 +24,7 @@ type Snapshot = {
     verificationShare: number | null;
   };
   sessions: Array<{ code: string; name: string; description: string; isIllustrative: boolean; counts: { concepts: number; verified: number; disputed: number; evidence: number } }>;
-  concepts: Array<{ id: string; sessionCode: string; conceptCode: string; agreedMeaning: string; status: string; category: string; updatedAt: string }>;
+  concepts: Array<{ id: string; sessionCode: string; conceptCode: string; agreedMeaning: string; status: string; statusReason?: string; category: string; updatedAt: string }>;
   timeline: Array<{ id: string; sessionCode: string; message: string; actor: string | null; createdAt: string }>;
   contributions: Array<{ sessionCode: string; displayName: string; role: string; evidence: number; checks: number; notes: number; proposals: number }>;
 };
@@ -96,7 +96,7 @@ export function ResearchView({ code }: { code?: string }) {
                 <p key={concept.id} className="small">
                   <Link href={`/session/${concept.sessionCode}/concept/${concept.id}`}>{concept.conceptCode} {concept.agreedMeaning || "Unnamed"}</Link>
                   {" "}
-                  <StatusText status={concept.status} />
+                  <StatusText status={concept.status} reason={concept.statusReason} />
                 </p>
               ))}
             </div>

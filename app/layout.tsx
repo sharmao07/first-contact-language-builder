@@ -1,18 +1,18 @@
 import type { Metadata } from "next";
-import { IBM_Plex_Mono, Source_Sans_3, Source_Serif_4 } from "next/font/google";
+import { IBM_Plex_Mono, Instrument_Sans, Newsreader } from "next/font/google";
 import { SpeedInsights } from "@vercel/speed-insights/next";
 import "./globals.css";
 
-const display = Source_Serif_4({
+const display = Newsreader({
   subsets: ["latin"],
-  variable: "--font-source-serif",
-  weight: ["400", "600", "700"],
+  variable: "--font-newsreader",
+  weight: ["400", "500"],
 });
 
-const sans = Source_Sans_3({
+const sans = Instrument_Sans({
   subsets: ["latin"],
-  variable: "--font-source-sans",
-  weight: ["400", "600"],
+  variable: "--font-instrument",
+  weight: ["400", "500", "600"],
 });
 
 const mono = IBM_Plex_Mono({

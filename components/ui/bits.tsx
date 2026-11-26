@@ -1,7 +1,7 @@
-import { STATUS_LABEL } from "@/lib/constants";
+import { displayStatus } from "@/lib/constants";
 
-export function StatusText({ status }: { status: string }) {
-  return <span className={`status status-${status}`}>{STATUS_LABEL[status] ?? status}</span>;
+export function StatusText({ status, reason }: { status: string; reason?: string }) {
+  return <span className={`status status-${status}`}>{displayStatus(status, reason)}</span>;
 }
 
 export function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {

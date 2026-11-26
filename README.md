@@ -4,13 +4,13 @@ Building understanding where language ends.
 
 First-Contact Language Builder is a local web application for two people who do not share a language. They collect images, drawings, sounds, gestures, and notes, then test possible meanings together. The software can suggest readings. It does not declare one of them correct.
 
-An AI suggestion stays a hypothesis until a participant accepts it. Acceptance is tentative. A meaning is marked verified only after at least two decisive checks, no recorded disagreement, and at least three quarters of the responses matching the intended reading. One success is not proof. Verified entries can be reopened.
+An AI suggestion stays a guess until a facilitator or host accepts it. Acceptance is not session verification. A meaning is session-verified only inside that session, after two people record matching checks on different stimuli and different methods, with no disagreement and at least three quarters of the responses matching. One person's matches stay a facilitator-supported observation. Verified entries can be reopened. The result is not a claim of linguistic truth.
 
 ## Core features
 
 - Guest seats. A person creates a session, shares a code such as `TREE-4821`, and the other person joins as participant A or B. A recovery key lets someone rejoin the same seat.
 - Shared session state. Both browsers poll the same session and see new evidence, hypotheses, and checks.
-- Evidence. Camera capture, image upload, a drawing canvas, microphone recording, gesture descriptions, and short video uploads. Files stay in `data/uploads` and are served only with the matching session code.
+- Evidence. Camera capture, image upload, a drawing canvas, microphone recording, gesture descriptions, live demonstrations, short video uploads, and written notes. Files stay in `data/uploads` and are served only to a seat in that session.
 - Hypotheses. A demo facilitator, or an optional OpenAI-compatible model, proposes several readings, ambiguities, and a follow-up check. Participants can accept, reject, or challenge. Nothing is auto-verified.
 - Verification. Visual discrimination, context testing, reverse demonstration, contrast testing, and repeated checks. The status rule is shown in the workspace.
 - Vocabulary. Search, filter, edit, archive, dispute, and reopen entries. Each card keeps its evidence and status reason.
@@ -100,13 +100,13 @@ npm run db:seed     # replace the illustrative session only
 
 Demo mode is the default. It is active whenever `AI_PROVIDER` is not `openai` or `OPENAI_API_KEY` is empty.
 
-The landing page secondary action, Explore a demo, opens an illustrated session:
+The landing page secondary action, Explore a sample session, explains the illustrative session:
 
 - Code: `SHORE-1001`
 - Name: First Contact Experiment 001
 - Seats: Researcher A and Participant B
 
-Enter either seat from `/demo`. Two browsers can enter the two seats. Reset illustrative data replaces that sample and leaves sessions you created.
+Opening a seat or resetting that sample requires the local operator secret. The page at `/demo` explains the two curl commands. One response contains one seat. Reset rewrites only that sample.
 
 The sample shows water being split from drinking and from a container, a rejected river reading, a disputed movement gesture, verified and unresolved entries, checks, practice, an expression trial, and research notes. It is labeled illustrative. It is not real linguistic research, and its hypotheses were not produced by inspecting the files.
 

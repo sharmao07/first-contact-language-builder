@@ -31,7 +31,7 @@ export function Practice() {
   return (
     <div className="wrap section stack">
       <h1>Practice</h1>
-      <p>Activities are built only from tentatively accepted or session-verified entries in this session. Practice here is solo: your own match stays with you, and the other person does not receive whether your answer matched. Disputed meanings and bare AI hypotheses are left out. A miss is kept as evidence of ambiguity, with a clarification, rather than treated as a failed grade. Illustrative demo answers stay inside the sample session and are labeled there.</p>
+      <p>Activities are built only from meanings this session has verified. Practice here is solo: your own match stays with you, and the other person does not receive whether your answer matched. Guesses, facilitator-supported observations, and disputed meanings are left out. A miss is kept as evidence of ambiguity, with a clarification, rather than treated as a failed grade. Illustrative demo answers stay inside the sample session and are labeled there.</p>
       {repeatedMisses(responses).map((item) => (
         <Notice key={item.conceptId}>The same concept has been missed {item.count} times. That pattern is a reason to reopen the meaning, not to mark the person wrong.</Notice>
       ))}
@@ -109,19 +109,21 @@ function AnswerForm({
       }}
     >
       {keyed ? (
-        <Field label="Your choice">
-          <select className="select" value={selected} onChange={(event) => setSelected(event.target.value)}>
-            {options.map((option) => <option key={option.id} value={option.id}>{option.label}</option>)}
-          </select>
-        </Field>
+        <div className="stack-sm" role="radiogroup" aria-label="Your choice">
+          {options.map((option) => (
+            <button key={option.id} type="button" className={selected === option.id ? "btn is-selected" : "btn"} aria-pressed={selected === option.id} onClick={() => setSelected(option.id)}>{option.label}</button>
+          ))}
+        </div>
       ) : (
-        <Field label="Your own assessment">
-          <select className="select" value={assessment} onChange={(event) => setAssessment(event.target.value as "matched" | "unsure" | "different")}>
-            <option value="matched">It matched the recorded entry</option>
-            <option value="unsure">Unsure</option>
-            <option value="different">It came out different</option>
-          </select>
-        </Field>
+        <div className="row" role="radiogroup" aria-label="Your own assessment">
+          {([
+            ["matched", "It matched the recorded entry"],
+            ["unsure", "Unsure"],
+            ["different", "It came out different"],
+          ] as const).map(([value, label]) => (
+            <button key={value} type="button" className={assessment === value ? "btn is-selected" : "btn"} aria-pressed={assessment === value} onClick={() => setAssessment(value)}>{label}</button>
+          ))}
+        </div>
       )}
       <Field label="Note"><input className="control" value={notes} onChange={(event) => setNotes(event.target.value)} /></Field>
       <button className="btn" type="submit">Record answer</button>

@@ -173,7 +173,7 @@ export async function generateActivities(code: string, token: string | null, inp
     type: input.type,
   });
   if (!drafts.length) {
-    throw new HttpError(400, "Practice needs tentative or verified entries, and the chosen activity needs matching evidence. Disputed and unverified hypotheses are left out.");
+    throw new HttpError(400, "Practice needs a session-verified entry, and the chosen activity needs matching evidence. Guesses, accepted readings, and disputed meanings are left out.");
   }
   const created = [];
   for (const draft of drafts) {

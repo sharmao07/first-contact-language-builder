@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Camera, Hand, ImageIcon, Mic, Pencil } from "lucide-react";
+import { Camera, FileText, Hand, ImageIcon, Mic, Pencil, PersonStanding, Video } from "lucide-react";
 import { Field, Notice } from "@/components/ui/bits";
 import { PreviewFrame } from "@/components/ui/media";
 import { api, ApiError } from "@/lib/client/api";
@@ -13,7 +13,10 @@ const modes = [
   ["image", "Image", ImageIcon],
   ["drawing", "Drawing", Pencil],
   ["audio", "Audio", Mic],
+  ["video", "Video", Video],
   ["gesture", "Gesture", Hand],
+  ["demonstration", "Demonstration", PersonStanding],
+  ["note", "Written note", FileText],
 ] as const;
 
 type Mode = (typeof modes)[number][0];
@@ -63,20 +66,30 @@ export function Composer({
     event.preventDefault();
     setPending(true);
     setMessage(null);
-    const type = mode === "camera" ? "image" : mode;
+    if (mode === "note" && !description.trim()) {
+      setMessage("Write what was expressed before submitting the note.");
+      setPending(false);
+      return;
+    }
+    if (mode === "video" && !file) {
+      setMessage("Attach a video, or describe a demonstration instead.");
+      setPending(false);
+      return;
+    }
+    const type = mode === "camera" ? "image" : mode === "demonstration" ? "gesture" : mode;
     const form = new FormData();
     form.set("type", type);
     form.set("description", description);
     form.set("notes", notes);
-    form.set("actionCategory", mode === "gesture" || mode === "camera" ? actionCategory : "");
+    form.set("actionCategory", mode === "gesture" || mode === "demonstration" || mode === "camera" ? actionCategory : "");
     form.set("conceptId", conceptId);
     form.set("stance", stance);
     form.set("consentToAnalyze", consent ? "yes" : "no");
     form.set("durationMs", durationMs ? String(Math.round(durationMs)) : "");
     form.set("qualityNote", durationMs ? "Duration was read in the browser. It is not an acoustic analysis." : "");
-    form.set("gestureDirection", mode === "gesture" ? gestureDirection : "");
-    form.set("gestureRepetition", mode === "gesture" ? gestureRepetition : "");
-    form.set("gestureBody", mode === "gesture" ? gestureBody : "");
+    form.set("gestureDirection", mode === "gesture" || mode === "demonstration" ? gestureDirection : "");
+    form.set("gestureRepetition", mode === "gesture" || mode === "demonstration" ? gestureRepetition : "");
+    form.set("gestureBody", mode === "gesture" || mode === "demonstration" ? gestureBody : "");
     if (file) form.set("file", file, file.name);
     try {
       const saved = await api<{ evidenceId: string }>(`/api/sessions/${code}/evidence`, { token, form });
@@ -103,19 +116,38 @@ export function Composer({
 
   return (
     <form className="stack" onSubmit={submit}>
-      <div className="row" role="tablist" aria-label="Evidence type">
+      <div
+        className="segment"
+        role="tablist"
+        aria-label="Evidence type"
+        onKeyDown={(event) => {
+          const index = modes.findIndex(([id]) => id === mode);
+          if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
+          event.preventDefault();
+          const next = event.key === "ArrowRight" ? (index + 1) % modes.length : (index - 1 + modes.length) % modes.length;
+          setMode(modes[next][0]);
+          takeFile(null);
+        }}
+      >
         {modes.map(([id, label, Icon]) => (
-          <button key={id} type="button" className={mode === id ? "btn btn-primary" : "btn"} onClick={() => { setMode(id); takeFile(null); }}>
-            <Icon size={16} aria-hidden="true" />
+          <button key={id} type="button" role="tab" aria-selected={mode === id} className="btn" onClick={() => { setMode(id); takeFile(null); }}>
+            <Icon size={16} strokeWidth={1.5} aria-hidden="true" />
             {label}
           </button>
         ))}
       </div>
+      <div key={mode} className="page-enter">
       {mode === "camera" ? <CameraCapture onCapture={takeFile} /> : null}
       {mode === "image" ? <ImageDrop file={file} preview={preview} onFile={takeFile} /> : null}
       {mode === "drawing" ? <DrawingPad onSave={takeFile} /> : null}
       {mode === "audio" ? <AudioCapture file={file} onFile={takeFile} onDuration={setDurationMs} /> : null}
-      {mode === "gesture" ? (
+      {mode === "video" ? (
+        <Field label="Video file" hint="A short recording of what was shown. The app does not interpret the video by itself.">
+          <input className="control" type="file" accept="video/webm,video/mp4,video/quicktime" onChange={(event) => takeFile(event.target.files?.[0] ?? null)} />
+        </Field>
+      ) : null}
+      {mode === "note" ? <p className="small">A written description of what someone expressed. It is an observation, not a translation.</p> : null}
+      {mode === "gesture" || mode === "demonstration" ? (
         <GestureFields
           actionCategory={actionCategory}
           onAction={setActionCategory}
@@ -135,6 +167,7 @@ export function Composer({
           }}
         />
       ) : null}
+      </div>
       <Field label="Description">
         <textarea className="textarea" value={description} onChange={(event) => setDescription(event.target.value)} placeholder="What happened, in your own words?" />
       </Field>
@@ -162,7 +195,8 @@ export function Composer({
         Send this file to the configured AI provider. Leave this off to keep the file on this computer. Demo mode never inspects the file.
       </label>
       {stance === "contradictory" ? <p className="small">Attaching this to a concept reopens it. Earlier checks stay in the history and do not carry over.</p> : null}
-      <button className="btn btn-primary" type="submit" disabled={pending}>Submit evidence</button>
+      <button className="btn btn-primary" type="submit" disabled={pending} aria-busy={pending}>{pending ? "Saving the record…" : "Submit evidence"}</button>
+      {file ? <p className="small">Ready to submit. Nothing is saved until you submit.</p> : null}
       {message ? <Notice>{message}</Notice> : null}
       <p className="small muted">Images up to 8 MB, audio up to 10 MB, video up to 25 MB. SVG uploads are rejected.</p>
     </form>
@@ -170,12 +204,15 @@ export function Composer({
 }
 
 function ImageDrop({ file, preview, onFile }: { file: File | null; preview: string | null; onFile: (file: File | null) => void }) {
+  const [over, setOver] = useState(false);
   return (
     <div
-      className="stack-sm"
-      onDragOver={(event) => event.preventDefault()}
+      className={over ? "stack-sm drop-ready" : "stack-sm"}
+      onDragOver={(event) => { event.preventDefault(); setOver(true); }}
+      onDragLeave={() => setOver(false)}
       onDrop={(event) => {
         event.preventDefault();
+        setOver(false);
         onFile(event.dataTransfer.files?.[0] ?? null);
       }}
     >
@@ -260,6 +297,7 @@ function DrawingPad({ onSave }: { onSave: (file: File | null) => void }) {
   const last = useRef<{ x: number; y: number } | null>(null);
   const [size, setSize] = useState(4);
   const [erase, setErase] = useState(false);
+  const [saved, setSaved] = useState(false);
 
   useEffect(() => {
     const canvas = canvasRef.current;
@@ -310,6 +348,7 @@ function DrawingPad({ onSave }: { onSave: (file: File | null) => void }) {
     canvasRef.current?.toBlob((blob) => {
       if (!blob) return;
       onSave(new File([blob], "drawing.png", { type: "image/png" }));
+      setSaved(true);
     }, "image/png");
   }
 
@@ -341,18 +380,26 @@ function DrawingPad({ onSave }: { onSave: (file: File | null) => void }) {
         <button type="button" className="btn" onClick={clear}>Clear</button>
         <button type="button" className="btn" onClick={save}>Use this drawing</button>
       </div>
+      {saved ? <p className="small" role="status">Drawing is ready to submit. It is not saved until you submit the record.</p> : null}
     </div>
   );
 }
 
 function AudioCapture({ file, onFile, onDuration }: { file: File | null; onFile: (file: File | null) => void; onDuration: (ms: number | null) => void }) {
   const [recording, setRecording] = useState(false);
+  const [elapsed, setElapsed] = useState(0);
   const [url, setUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const recorder = useRef<MediaRecorder | null>(null);
   const chunks = useRef<Blob[]>([]);
 
   useEffect(() => () => { if (url) URL.revokeObjectURL(url); }, [url]);
+  useEffect(() => {
+    if (!recording) return;
+    const started = Date.now();
+    const timer = window.setInterval(() => setElapsed(Date.now() - started), 200);
+    return () => window.clearInterval(timer);
+  }, [recording]);
 
   async function start() {
     setError(null);
@@ -389,7 +436,7 @@ function AudioCapture({ file, onFile, onDuration }: { file: File | null; onFile:
   return (
     <div className="stack-sm">
       <p className="small">The browser will ask before the microphone starts. Recording stops automatically after one minute.</p>
-      {recording ? <p className="banner">Recording</p> : null}
+      {recording ? <p className="banner recording-live" role="status">Recording {Math.floor(elapsed / 1000)}s. Stops at one minute.</p> : null}
       {error ? <Notice>{error}</Notice> : null}
       <div className="row">
         {!recording ? <button type="button" className="btn" onClick={() => void start()}>Start recording</button> : <button type="button" className="btn btn-danger" onClick={stop}>Stop recording</button>}

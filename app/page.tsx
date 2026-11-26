@@ -11,24 +11,29 @@ export default function HomePage() {
       <main id="content">
         <section className="hero wrap">
           <div className="stack">
-            <h1>Everyone deserves a way to be understood.</h1>
-            <p className="lede">Build shared understanding with people who do not speak your language. Discover meaning through visual communication, gestures, sounds and collaborative experiments.</p>
+            <h1>Helping people communicate when no shared language exists.</h1>
+            <p className="lede">First-Contact Language Builder helps two people discover what their expressions mean to each other. Don&apos;t assume meaning. Discover it together.</p>
             <div className="row">
               <Link className="btn btn-primary" href="/start">Start community access</Link>
               <Link className="btn" href="/demo">Explore a sample session</Link>
             </div>
           </div>
           <div className="exchange" aria-hidden="true">
-            <article>
-              <p className="small muted">Participant A</p>
-              <p>Points at a glass. Mimes drinking.</p>
-              <p className="small">Evidence, not a definition.</p>
-            </article>
-            <article>
-              <p className="small muted">Participant B</p>
-              <p>Draws the glass. Records a sound.</p>
-              <p className="small">Water, drinking, or the cup?</p>
-            </article>
+            <svg className="glass-drawing" viewBox="0 0 120 200" fill="none">
+              <path d="M34 28h52l-7 104a19 19 0 0 1-38 0L34 28z" stroke="currentColor" strokeWidth="1.5" />
+              <g className="glass-water">
+                <path d="M40 86h40l-4 40a14 14 0 0 1-32 0l-4-40z" fill="var(--oxide)" />
+                <path className="glass-shine" d="M46 92h10l-1 18" stroke="var(--bg-elev)" strokeWidth="1.5" />
+              </g>
+              <path d="M46 28V16h28" stroke="currentColor" strokeWidth="1.5" />
+            </svg>
+            <div className="stack-sm">
+              <p className="small">Seat A points at the glass and mimes a drink. Seat B draws it back.</p>
+              <p className="guess-line"><span className="status status-open">Guess</span> the container</p>
+              <p className="guess-line"><span className="status status-open">Guess</span> the water</p>
+              <p className="guess-line"><span className="status status-open">Guess</span> the drink</p>
+              <p className="small">The glass is evidence. None of these readings is session-verified.</p>
+            </div>
           </div>
         </section>
 
@@ -45,14 +50,16 @@ export default function HomePage() {
 
         <section className="section">
           <div className="wrap stack">
-            <h2>Meaning begins before language.</h2>
-            <p>Community access is for a newcomer and a local volunteer, or any two people working across a language barrier. Language research remains available when you open a session. This is a discovery record. It is not emergency interpretation, and it does not claim to decipher an unknown language.</p>
-            <div className="grid-2">
-              <p className="rule">Two people share a session code and keep their own seats. Either person can bring a photo, a drawing, a sound, a short video, or a description of a gesture.</p>
-              <p className="rule">The facilitator proposes several meanings, names what is ambiguous, and suggests a check. A person has to accept, reject, or challenge each one.</p>
-              <p className="rule">Checks use a different example: a contrast, a new context, or a reverse demonstration. One match is not verification.</p>
-              <p className="rule">Agreed entries can be combined into an expression trial. Word order stays marked as a hypothesis, not a grammar.</p>
-            </div>
+            <h2>A guided workshop, not a translation.</h2>
+            <p>One person opens a session and invites the other with a code or a QR. They keep separate seats. They can use pictures, drawings, gestures, demonstrations, audio, video, or written descriptions. Competing guesses stay open. A later check is planned so the two replies can tell those guesses apart. The replies stay hidden until both are locked. Only a meaning that meets the session&apos;s checks can be arranged as shared vocabulary. Anything unresolved or disputed stays labeled uncertain.</p>
+            <ol className="ledger">
+              <li><span>01</span>Start a session. Invite the other person with a code or QR. Each person has their own seat.</li>
+              <li><span>02</span>Communicate without a shared vocabulary. Record a picture, drawing, gesture, demonstration, sound, video, or written description.</li>
+              <li><span>03</span>Keep competing guesses. The app does not decide that an expression means the container, the water, drinking, or a request.</li>
+              <li><span>04</span>Plan a check that names what each result would support or weaken. AI can propose the check. It cannot verify the meaning.</li>
+              <li><span>05</span>Each person answers separately. The answers stay hidden until both are locked.</li>
+              <li><span>06</span>Add a meaning to the shared board only after the session&apos;s checks pass. A guess, a facilitator-supported observation, and a dispute stay visible and uncertain.</li>
+            </ol>
           </div>
         </section>
 
@@ -82,11 +89,11 @@ export default function HomePage() {
 
         <section className="section">
           <div className="wrap stack">
-            <h2>Research and language preservation</h2>
+            <h2>Who this can help</h2>
             <div className="grid-3">
-              <p className="rule">Two neighbors can build a small working vocabulary when they do not share speech.</p>
-              <p className="rule">A field worker can keep the community&apos;s corrections beside the model&apos;s suggestions instead of overwriting them.</p>
-              <p className="rule">A family can record a home gesture system with its disputes intact, on a machine they control.</p>
+              <p className="rule">A newcomer and a local volunteer can build a small practical vocabulary for everyday objects, actions, and needs. This supplements interpreters. It is not emergency or medical instruction.</p>
+              <p className="rule">A researcher can keep alternative readings and the observations that support them during an early elicitation session.</p>
+              <p className="rule">A team working across languages can check a procedure or an object with a demonstration instead of assuming a symbol already means the same thing to both people.</p>
             </div>
           </div>
         </section>
@@ -102,7 +109,7 @@ export default function HomePage() {
             </div>
             <div className="stack">
               <h2>Begin with one concept</h2>
-              <p>Open a session, invite the other person with the code, and submit one piece of evidence before asking for hypotheses.</p>
+              <p>Open a session, invite the other person with the code or QR, and record one expression before asking for guesses. This installation has not been shown to work for people who truly share no language, and it is not ready for a shared public server.</p>
               <div className="row">
                 <Link className="btn btn-primary" href="/start">Start a discovery session</Link>
                 <Link className="btn" href="/demo">Explore a demo</Link>

@@ -32,7 +32,7 @@ type ExpressionLite = {
   conceptIds: string[];
 };
 
-const PRACTICEABLE = new Set(["tentative", "verified"]);
+const PRACTICEABLE = new Set(["verified"]);
 
 export function buildActivities(input: {
   concepts: ConceptLite[];
@@ -49,8 +49,16 @@ export function buildActivities(input: {
     if ((!wanted || wanted === "identify_image") && attached.some((item) => item.type === "image" || item.type === "drawing")) {
       drafts.push(choiceActivity("identify_image", concept, pool, `Which current entry matches the image or drawing attached to "${concept.agreedMeaning}"? Practice uses entries already in this session.`));
     }
-    if ((!wanted || wanted === "match_example") && concept.exampleSituations.trim()) {
-      drafts.push(choiceActivity("match_example", concept, pool, `Which current entry fits this example? ${concept.exampleSituations}`));
+    if (!wanted || wanted === "match_example") {
+      const example = concept.exampleSituations.trim();
+      drafts.push(choiceActivity(
+        "match_example",
+        concept,
+        pool,
+        example
+          ? `Which current entry fits this example? ${example}`
+          : `Which session-verified entry is "${concept.agreedMeaning}"? Practice uses meanings this session has already checked.`,
+      ));
     }
     if ((!wanted || wanted === "reproduce_gesture") && attached.some((item) => item.type === "gesture")) {
       const gesture = attached.find((item) => item.type === "gesture");

@@ -113,14 +113,14 @@ export const RESULT_VALUES = ["correct", "incorrect", "ambiguous", "disagree"] a
 
 export const STATUS_LABEL: Record<string, string> = {
   hypothesis: "Proposed",
-  awaiting: "Under verification",
-  tentative: "Tentatively accepted",
+  awaiting: "Not yet tested enough",
+  tentative: "Accepted, not session-verified",
   verified: "Session-verified",
   disputed: "Disputed",
   reopened: "Reopened",
   archived: "Archived",
-  open: "Awaiting participant response",
-  accepted: "Accepted by a participant",
+  open: "Guess",
+  accepted: "Accepted, not session-verified",
   rejected: "Rejected",
   challenged: "Challenged",
   active: "Active",
@@ -157,6 +157,14 @@ export const ACTIVITY_LABEL: Record<string, string> = {
 };
 
 export const DEMO_SESSION_CODE = "SHORE-1001";
+
+export function displayStatus(status: string, reason = "") {
+  const text = reason.toLowerCase();
+  if (status === "awaiting" && text.includes("facilitator-supported")) return "Facilitator-supported observation";
+  if (status === "hypothesis" && text.includes("interpretation")) return "Guess";
+  if (status === "open") return "Guess";
+  return STATUS_LABEL[status] ?? status;
+}
 
 export function limitBytes(kind: "image" | "audio" | "video") {
   const fallback = { image: 8_000_000, audio: 10_000_000, video: 25_000_000 };

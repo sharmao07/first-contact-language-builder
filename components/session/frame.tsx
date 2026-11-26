@@ -2,7 +2,8 @@
 
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { BookOpen, FlaskConical, LayoutGrid, PenLine, Rows3, ScrollText, Search, Settings, Users, Waypoints, FileText } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Field, Notice } from "@/components/ui/bits";
 import { SessionProvider, useSessionContext } from "@/components/session/provider";
@@ -43,53 +44,81 @@ function FrameBody({ code, children }: { code: string; children: React.ReactNode
     }
   }
 
+  const syncLabel = syncMode === "live" ? "Live with the other seat" : syncMode === "polling" ? "Refreshing the shared record" : "Connecting";
+
   return (
-    <>
-      <header className="session-bar wrap">
-        <div className="stack-sm">
-          <Link href="/">First-Contact</Link>
-          <span className="mono small">{state?.session.code ?? code}</span>
-          <span className="small muted">{syncMode === "live" ? "Live with the other seat" : syncMode === "polling" ? "Refreshing the shared record" : "Connecting"}</span>
-        </div>
-        <nav>
-          {links.map(([href, label]) => (
-            <Link key={href} href={href} aria-current={pathname === href ? "page" : undefined}>
-              {label}
-            </Link>
-          ))}
-          <ThemeToggle />
-        </nav>
+    <div className="shell">
+      <header className="shell-top">
+        <Link className="wordmark" href="/">
+          <span className="reading-mark" aria-hidden="true" />
+          First-Contact
+        </Link>
+        <span className="mono small">{state?.session.code ?? code}</span>
+        <span className="live-dot" data-mode={syncMode} role="img" aria-label={syncLabel} />
+        <span className="small muted">{syncLabel}</span>
+        <span className="spacer" />
+        <ThemeToggle />
       </header>
-      {state?.session.status === "archived" ? (
-        <div className="wrap" style={{ paddingTop: "0.7rem" }}>
-          <Notice>This session is archived. The record is still here. Restore it from the discovery panel.</Notice>
+      <div className="shell-body">
+        <nav className="shell-nav" aria-label="Session">
+          {links.map(([href, label]) => {
+            const Icon = NAV_ICON[label] ?? Search;
+            return (
+              <Link key={href} href={href} aria-current={pathname === href ? "page" : undefined} title={label}>
+                <Icon size={16} strokeWidth={1.5} aria-hidden="true" />
+                {label}
+              </Link>
+            );
+          })}
+        </nav>
+        <div className="shell-main">
+          {state?.session.status === "archived" ? (
+            <div className="wrap" style={{ paddingTop: 16 }}>
+              <Notice>This session is archived. The record is still here. Restore it from the discovery panel.</Notice>
+            </div>
+          ) : null}
+          {state?.session.isIllustrative ? (
+            <div className="wrap" style={{ paddingTop: 16 }}>
+              <Notice>Illustrative sample. Not real linguistic research. Demo hypotheses were not produced by inspecting files.</Notice>
+            </div>
+          ) : null}
+          {state?.ai.mode === "demo" ? (
+            <div className="wrap" style={{ paddingTop: 16 }}>
+              <Notice>{state.ai.disclosure}</Notice>
+            </div>
+          ) : null}
+          <main id="content">
+            {identity === undefined || (loading && !state) ? <SessionSkeleton /> : null}
+            {error && !state ? (
+              <div className="wrap section stack">
+                <h1>Session unavailable</h1>
+                <p>{error}</p>
+                <Link className="btn" href="/start">Back to start</Link>
+              </div>
+            ) : null}
+            {state && identity ? <SessionInvite code={code} /> : null}
+            {state && identity === null ? <JoinPanel /> : null}
+            {state && identity ? <div key={pathname} className="page-enter">{children}</div> : null}
+          </main>
         </div>
-      ) : null}
-      {state?.session.isIllustrative ? (
-        <div className="wrap" style={{ paddingTop: "0.7rem" }}>
-          <Notice>Illustrative sample. Not real linguistic research. Demo hypotheses were not produced by inspecting files.</Notice>
-        </div>
-      ) : null}
-      {state?.ai.mode === "demo" ? (
-        <div className="wrap" style={{ paddingTop: "0.7rem" }}>
-          <Notice>{state.ai.disclosure}</Notice>
-        </div>
-      ) : null}
-      <main id="content">
-        {identity === undefined || (loading && !state) ? <SessionSkeleton /> : null}
-        {error && !state ? (
-          <div className="wrap section stack">
-            <h1>Session unavailable</h1>
-            <p>{error}</p>
-            <Link className="btn" href="/start">Back to start</Link>
-          </div>
-        ) : null}
-        {state && identity === null ? <JoinPanel /> : null}
-        {state && identity ? children : null}
-      </main>
-    </>
+      </div>
+    </div>
   );
 }
+
+const NAV_ICON: Record<string, typeof Search> = {
+  Community: Users,
+  Checks: FlaskConical,
+  Board: LayoutGrid,
+  Discovery: Search,
+  Vocabulary: BookOpen,
+  Practice: PenLine,
+  Expressions: Rows3,
+  Graph: Waypoints,
+  Record: ScrollText,
+  Research: FileText,
+  Settings,
+};
 
 function SessionSkeleton() {
   return (
@@ -97,6 +126,26 @@ function SessionSkeleton() {
       <div className="skeleton" />
       <div className="skeleton" />
       <div className="skeleton" />
+    </div>
+  );
+}
+
+function SessionInvite({ code }: { code: string }) {
+  const [svg, setSvg] = useState("");
+  useEffect(() => {
+    const url = `${window.location.origin}/start?code=${code}`;
+    let cancelled = false;
+    void import("qrcode").then((qr) => qr.toString(url, { type: "svg", margin: 1, width: 132 })).then((markup) => {
+      if (!cancelled) setSvg(markup);
+    }).catch(() => setSvg(""));
+    return () => { cancelled = true; };
+  }, [code]);
+  return (
+    <div className="invite-strip">
+      <div className="row" style={{ alignItems: "center", justifyContent: "space-between" }}>
+        <p className="small">Invite the other person with this code or QR. They join from their own screen. Neither seat decides what an expression means.</p>
+        {svg ? <div aria-label={`QR invitation for ${code}`} dangerouslySetInnerHTML={{ __html: svg }} /> : <p className="mono">{code}</p>}
+      </div>
     </div>
   );
 }

@@ -118,11 +118,11 @@ function JoinForm() {
     setPending(true);
     setMessage(null);
     try {
-      const result = await api<{ code: string; token: string; participantId: string; role: string; displayName: string }>("/api/sessions/join", {
+      const result = await api<{ code: string; token: string; participantId: string; role: string; displayName: string; purpose?: string }>("/api/sessions/join", {
         body: { code, displayName, role },
       });
       writeIdentity(result);
-      router.push(`/session/${result.code}`);
+      router.push(result.purpose === "community" ? `/session/${result.code}/community` : `/session/${result.code}`);
     } catch (caught) {
       setMessage(caught instanceof ApiError ? caught.message : "Could not join.");
       setPending(false);

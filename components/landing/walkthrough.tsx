@@ -5,20 +5,20 @@ import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
 
 const steps = [
   {
-    title: "A glass, and a drinking mime",
-    body: "Participant A points at a glass and mimes a drink. The file is evidence. It is not yet a word.",
+    title: "A glass, and a sound",
+    body: "Person A points at a glass of water and makes a gesture or a sound. Person B responds. The record keeps the container, the water, and drinking as competing guesses.",
   },
   {
-    title: "Several readings stay open",
-    body: "The facilitator can suggest water, the action of drinking, the container, or a request. None of those is marked verified.",
+    title: "A check that can tell them apart",
+    body: "The next demonstration shows an empty glass and water separately. Choosing the empty glass would support the object. Choosing the water would support the substance. Choosing both, or neither, leaves the reading incomplete.",
   },
   {
-    title: "A check splits them apart",
-    body: "A later contrast uses rain, a river, and an empty glass. One success is recorded. It still is not proof.",
+    title: "Two people answer separately",
+    body: "Each person responds before seeing the other answer. The result is evidence. It does not declare that the expression means glass or water.",
   },
   {
-    title: "A second, different check",
-    body: "Only after another varied check, with no disagreement, can the shared entry become verified. It can still be reopened.",
+    title: "Only a tested meaning is shared",
+    body: "A meaning can be arranged on the shared board after two people match it on different examples and methods. Anything still disputed stays labeled uncertain.",
   },
 ];
 

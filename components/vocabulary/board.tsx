@@ -29,7 +29,7 @@ export function VocabularyBoard() {
   return (
     <div className="wrap section stack">
       <h1>Shared vocabulary</h1>
-      <p className="small">Entries keep their verification status. A search does not promote a hypothesis into a verified meaning.</p>
+      <p className="small">Session-verified entries met this session&apos;s checks. Guesses, accepted readings, facilitator-supported observations, and disputed meanings stay visible and uncertain. Search does not promote any of them.</p>
       <div className="grid-3">
         <Field label="Search"><input className="control" value={query} onChange={(event) => setQuery(event.target.value)} /></Field>
         <Field label="Category">
@@ -91,7 +91,7 @@ function VocabCard({ conceptId, onDone }: { conceptId: string; onDone: () => voi
       {image?.mediaUrl ? <EvidenceImage alt={current.agreedMeaning || "Concept evidence"} src={image.mediaUrl} /> : null}
       <p className="mono small">{current.conceptCode}</p>
       <h2>{current.agreedMeaning || "Unnamed"}</h2>
-      <StatusText status={current.status} />
+      <StatusText status={current.status} reason={current.statusReason} />
       <p className="small">{CATEGORY_LABEL[current.category as keyof typeof CATEGORY_LABEL] ?? current.category}</p>
       <p className="small">{current.statusReason}</p>
       {current.aiConfidence !== null ? <p className="small">AI-estimated confidence {current.aiConfidence.toFixed(2)}, not a measured probability.</p> : null}

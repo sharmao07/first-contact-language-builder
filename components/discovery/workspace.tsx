@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Composer } from "@/components/discovery/composer";
 import { LeaveButton } from "@/components/session/frame";
@@ -8,7 +8,8 @@ import { useSessionContext } from "@/components/session/provider";
 import { Field, Notice, StatusText } from "@/components/ui/bits";
 import { EvidenceImage } from "@/components/ui/media";
 import { api, ApiError } from "@/lib/client/api";
-import { CATEGORIES, CATEGORY_LABEL, EXPERIMENT_LABEL, EXPERIMENT_TYPES } from "@/lib/constants";
+import { canMutateHypotheses } from "@/lib/access/policy";
+import { CATEGORIES, CATEGORY_LABEL, displayStatus, EXPERIMENT_LABEL, EXPERIMENT_TYPES } from "@/lib/constants";
 import { METHODOLOGY } from "@/lib/verification/methodology";
 import type { EvidenceDTO, HypothesisDTO } from "@/lib/types";
 
@@ -34,11 +35,22 @@ export function Workspace() {
           <SessionSide />
         </section>
         <section className={`bench-col ${pane === "Discovery" ? "is-active" : ""}`}>
-          <div className="row" style={{ marginBottom: "0.8rem" }}>
-            <button type="button" className={tab === "evidence" ? "btn btn-primary" : "btn"} onClick={() => setTab("evidence")}>Evidence</button>
-            <button type="button" className={tab === "hypotheses" ? "btn btn-primary" : "btn"} onClick={() => setTab("hypotheses")}>Hypotheses</button>
-            <button type="button" className={tab === "checks" ? "btn btn-primary" : "btn"} onClick={() => setTab("checks")}>Verification</button>
+          <div
+            className="segment"
+            role="tablist"
+            aria-label="Discovery"
+            onKeyDown={(event) => {
+              const order = ["evidence", "hypotheses", "checks"] as const;
+              const index = order.indexOf(tab);
+              if (event.key === "ArrowRight") setTab(order[(index + 1) % order.length]);
+              if (event.key === "ArrowLeft") setTab(order[(index - 1 + order.length) % order.length]);
+            }}
+          >
+            <button type="button" role="tab" id="tab-evidence" aria-selected={tab === "evidence"} aria-controls="discovery-panel" className="btn" onClick={() => setTab("evidence")}>Evidence</button>
+            <button type="button" role="tab" id="tab-hypotheses" aria-selected={tab === "hypotheses"} aria-controls="discovery-panel" className="btn" onClick={() => setTab("hypotheses")}>Hypotheses</button>
+            <button type="button" role="tab" id="tab-checks" aria-selected={tab === "checks"} aria-controls="discovery-panel" className="btn" onClick={() => setTab("checks")}>Verification</button>
           </div>
+          <div id="discovery-panel" role="tabpanel" aria-labelledby={`tab-${tab}`} key={tab} className="page-enter">
           {tab === "evidence" ? (
             <div className="stack">
               <Composer code={code} token={identity.token} concepts={state.concepts} purpose={state.session.purpose} onDone={reload} />
@@ -47,6 +59,7 @@ export function Workspace() {
           ) : null}
           {tab === "hypotheses" ? <HypothesisBoard onDone={reload} onOpenConcept={setConceptId} /> : null}
           {tab === "checks" ? <Checks onDone={reload} /> : null}
+          </div>
         </section>
         <aside className={`bench-col ${pane === "Concept" ? "is-active" : ""}`}>
           <ConceptSide selectedId={selected?.id ?? ""} onSelect={setConceptId} onDone={reload} />
@@ -59,6 +72,11 @@ export function Workspace() {
 function SessionSide() {
   const { state, identity, code } = useSessionContext();
   const [copied, setCopied] = useState(false);
+  useEffect(() => {
+    if (!copied) return;
+    const timer = window.setTimeout(() => setCopied(false), 1600);
+    return () => window.clearTimeout(timer);
+  }, [copied]);
   if (!state || !identity) return null;
   return (
     <div className="stack">
@@ -72,6 +90,7 @@ function SessionSide() {
       <button
         type="button"
         className="btn"
+        aria-live="polite"
         onClick={() => {
           void navigator.clipboard.writeText(state.session.code);
           setCopied(true);
@@ -82,11 +101,16 @@ function SessionSide() {
       <p className="small">On the other device, open this app, choose Join, and enter {state.session.code}. Pick the open seat.</p>
       <div className="stack-sm">
         <h3>Seats</h3>
-        {state.participants.map((person) => (
-          <p key={person.id} className="small">
-            {person.role}. {person.displayName}. {person.leftAt ? "Left" : person.connected ? "Here" : "Quiet"}
-          </p>
-        ))}
+        {state.participants.map((person) => {
+          const presence = person.leftAt ? "left" : person.connected ? "here" : "quiet";
+          const presenceLabel = presence === "left" ? "Left" : presence === "here" ? "Here" : "Quiet";
+          return (
+            <p key={person.id} className="seat small">
+              <span className="seat-mark" data-state={presence} aria-hidden="true" />
+              {person.role}. {person.displayName}. {presenceLabel}
+            </p>
+          );
+        })}
         {state.participants.length < 2 ? <p className="small muted">One seat is still open.</p> : null}
       </div>
       <div className="stack-sm">
@@ -238,14 +262,26 @@ function HypothesisBoard({ onDone, onOpenConcept }: { onDone: () => void; onOpen
   const [meaning, setMeaning] = useState("");
   const [explanation, setExplanation] = useState("");
   const [message, setMessage] = useState<string | null>(null);
+  const [filter, setFilter] = useState("all");
   if (!state || !identity) return null;
+  const statuses = [...new Set(state.hypotheses.map((hypothesis) => hypothesis.status))];
+  const shown = state.hypotheses.filter((hypothesis) => filter === "all" || hypothesis.status === filter);
   return (
     <div className="stack">
       <p className="small">Accepting a hypothesis records a participant interpretation. It does not verify the meaning. AI-estimated confidence is not a measured probability.</p>
-      {state.hypotheses.map((hypothesis) => (
+      {statuses.length > 1 ? (
+        <div className="segment" role="tablist" aria-label="Hypothesis status">
+          <button type="button" className="btn" role="tab" aria-selected={filter === "all"} onClick={() => setFilter("all")}>All</button>
+          {statuses.map((status) => (
+            <button key={status} type="button" className="btn" role="tab" aria-selected={filter === status} onClick={() => setFilter(status)}>{displayStatus(status)}</button>
+          ))}
+        </div>
+      ) : null}
+      {shown.map((hypothesis) => (
         <HypothesisCard key={hypothesis.id} hypothesis={hypothesis} onDone={onDone} onOpenConcept={onOpenConcept} />
       ))}
       {!state.hypotheses.length ? <p>No hypotheses yet. Submit evidence to request some, or propose one yourself.</p> : null}
+      {state.hypotheses.length > 0 && shown.length === 0 ? <p>No readings with that status.</p> : null}
       <form
         className="stack"
         onSubmit={async (event) => {
@@ -287,12 +323,17 @@ function HypothesisCard({
   const [category, setCategory] = useState<(typeof CATEGORIES)[number]>("other");
   const [meaning, setMeaning] = useState(hypothesis.proposedMeaning);
   const [message, setMessage] = useState<string | null>(null);
+  const [pending, setPending] = useState<string | null>(null);
   if (!identity) return null;
   const token = identity.token;
+  const editor = state?.viewer
+    ? canMutateHypotheses({ purpose: state.session.purpose, role: state.viewer.role, communityRole: state.viewer.communityRole })
+    : false;
   const label = hypothesis.source === "participant" ? "Participant interpretation" : hypothesis.simulated ? "Simulated hypothesis" : "AI hypothesis";
 
   async function act(action: "accept" | "reject" | "challenge") {
     setMessage(null);
+    setPending(action);
     try {
       const result = await api<{ conceptId?: string }>(`/api/sessions/${code}/hypotheses/${hypothesis.id}`, {
         token,
@@ -302,6 +343,8 @@ function HypothesisCard({
       onDone();
     } catch (caught) {
       setMessage(caught instanceof ApiError ? caught.message : "That response was not saved.");
+    } finally {
+      setPending(null);
     }
   }
 
@@ -318,7 +361,7 @@ function HypothesisCard({
       <p className="small">Suggested check: {hypothesis.suggestedExperiment}</p>
       {hypothesis.source === "ai" ? <p className="small">AI-estimated confidence {hypothesis.confidence.toFixed(2)}. This is not a measured probability.</p> : null}
       {hypothesis.providerNote ? <p className="small muted">{hypothesis.providerNote}</p> : null}
-      {hypothesis.status === "open" || hypothesis.status === "challenged" ? (
+      {editor && (hypothesis.status === "open" || hypothesis.status === "challenged") ? (
         <div className="stack-sm">
           <Field label="Wording to record">
             <input className="control" value={meaning} onChange={(event) => setMeaning(event.target.value)} />
@@ -329,11 +372,14 @@ function HypothesisCard({
             </select>
           </Field>
           <div className="row">
-            <button type="button" className="btn btn-primary" onClick={() => void act("accept")}>Accept as tentative</button>
-            <button type="button" className="btn" onClick={() => void act("reject")}>Reject</button>
-            <button type="button" className="btn btn-danger" onClick={() => void act("challenge")}>Challenge</button>
+            <button type="button" className="btn btn-primary" aria-busy={pending === "accept"} disabled={Boolean(pending)} onClick={() => void act("accept")}>{pending === "accept" ? "Recording the interpretation…" : "Accept as tentative"}</button>
+            <button type="button" className="btn" aria-busy={pending === "reject"} disabled={Boolean(pending)} onClick={() => void act("reject")}>{pending === "reject" ? "Recording the rejection…" : "Reject"}</button>
+            <button type="button" className="btn btn-danger" aria-busy={pending === "challenge"} disabled={Boolean(pending)} onClick={() => void act("challenge")}>{pending === "challenge" ? "Recording the challenge…" : "Challenge"}</button>
           </div>
         </div>
+      ) : null}
+      {!editor && (hypothesis.status === "open" || hypothesis.status === "challenged") ? (
+        <p className="small">Only the person guiding this session can accept, reject, or challenge a guess. Doing so still does not session-verify it.</p>
       ) : null}
       {message ? <Notice>{message}</Notice> : null}
       {state?.concepts.find((concept) => concept.id === hypothesis.conceptId) ? (
@@ -473,7 +519,7 @@ function ConceptSide({ selectedId, onSelect, onDone }: { selectedId: string; onS
       </Field>
       {concept ? (
         <div className="stack-sm">
-          <StatusText status={concept.status} />
+          <StatusText status={concept.status} reason={concept.statusReason} />
           <h2>{concept.agreedMeaning || "No agreed wording"}</h2>
           <p className="small">{CATEGORY_LABEL[concept.category as keyof typeof CATEGORY_LABEL] ?? concept.category}</p>
           <p className="small">{concept.statusReason}</p>

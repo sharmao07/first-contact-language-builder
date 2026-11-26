@@ -83,6 +83,11 @@ try {
 
   const conceptId = accepted.data?.conceptId;
   await call(`/api/sessions/${code}/concepts/${conceptId}`, { method: "PATCH", token: tokenA, body: { exampleSituations: "A cup on the table." } });
+  const practiceFirst = await call(`/api/sessions/${code}/experiments`, { token: tokenA, body: { conceptId, type: "contrast_testing", stimulusNote: "the empty holder" } });
+  await call(`/api/sessions/${code}/experiments/${practiceFirst.data?.experimentId}/respond`, { token: tokenB, body: { result: "correct", selectedOptionId: conceptId } });
+  const practiceSecond = await call(`/api/sessions/${code}/experiments`, { token: tokenA, body: { conceptId, type: "repeated_verification", stimulusNote: "a second empty holder" } });
+  const practiceVerified = await call(`/api/sessions/${code}/experiments/${practiceSecond.data?.experimentId}/respond`, { token: tokenA, body: { result: "correct", selectedOptionId: conceptId } });
+  note("practice waits for session verification", practiceVerified.data?.status === "verified", practiceVerified.data?.status ?? `HTTP ${practiceVerified.status}`);
   const activities = await call(`/api/sessions/${code}/activities`, { token: tokenA, body: { type: "match_example" } });
   const activityId = activities.data?.activityIds?.[0];
   const answered = await call(`/api/sessions/${code}/activities/${activityId}/respond`, { token: tokenB, body: { selectedOptionId: conceptId, notes: "Bao practices." } });

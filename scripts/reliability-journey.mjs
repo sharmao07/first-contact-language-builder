@@ -200,6 +200,24 @@ async function main() {
   });
   note("23 vocabulary entry", vocab.ok && Boolean(vocab.data?.conceptId), `HTTP ${vocab.status} ${vocab.data?.error ?? ""}`);
 
+  const cupFirst = await call(`/api/sessions/${code}/experiments`, {
+    token: tokenA,
+    body: { conceptId: vocab.data.conceptId, type: "contrast_testing", stimulusNote: "the empty holder" },
+  });
+  await call(`/api/sessions/${code}/experiments/${cupFirst.data?.experimentId}/respond`, {
+    token: tokenB,
+    body: { result: "correct", selectedOptionId: vocab.data.conceptId, notes: "Bao matches the holder" },
+  });
+  const cupSecond = await call(`/api/sessions/${code}/experiments`, {
+    token: tokenA,
+    body: { conceptId: vocab.data.conceptId, type: "repeated_verification", stimulusNote: "a second empty holder" },
+  });
+  const cupVerified = await call(`/api/sessions/${code}/experiments/${cupSecond.data?.experimentId}/respond`, {
+    token: tokenA,
+    body: { result: "correct", selectedOptionId: vocab.data.conceptId, notes: "Ada matches the second holder" },
+  });
+  note("23b cup is session-verified before practice", cupVerified.data?.status === "verified", cupVerified.data?.status ?? `HTTP ${cupVerified.status}`);
+
   const activities = await call(`/api/sessions/${code}/activities`, { token: tokenA, body: { type: "match_example" } });
   const activityId = activities.data?.activityIds?.[0];
   note("24 practice generated", activities.ok && Boolean(activityId), `HTTP ${activities.status} ${activities.data?.error ?? ""}`);

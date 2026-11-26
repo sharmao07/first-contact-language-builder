@@ -10,6 +10,7 @@ import { mediaPlan } from "@/lib/ai/openai-provider";
 import { getAIMode } from "@/lib/ai/config";
 import { buildExperiment, stimulusIdentity } from "@/lib/verification/experiments";
 import { independentMatches, deriveVerificationStatus } from "@/lib/verification/status";
+import { displayStatus } from "@/lib/constants";
 
 describe("session codes", () => {
   it("generates a human-readable code", () => {
@@ -132,6 +133,25 @@ describe("experiments and practice", () => {
         },
       ],
       evidence: [],
+      expressions: [],
+    });
+    expect(drafts).toHaveLength(0);
+  });
+
+  it("does not build practice from an accepted reading that is not session-verified", () => {
+    const drafts = buildActivities({
+      concepts: [
+        {
+          id: "water",
+          agreedMeaning: "Water",
+          status: "tentative",
+          category: "substance",
+          exampleSituations: "A glass of water",
+          alternativeInterpretations: "The glass",
+          contextualNotes: "",
+        },
+      ],
+      evidence: [{ id: "ev", conceptId: "water", type: "image", description: "A glass", actionCategory: null }],
       expressions: [],
     });
     expect(drafts).toHaveLength(0);
@@ -324,5 +344,17 @@ describe("phase 2 facilitator boundaries", () => {
     expect(analysis.simulated).toBe(true);
     expect(analysis.cannotDetermine.join(" ").toLowerCase()).toContain("not inspected");
     expect(analysis.hypotheses[0]?.missingInformation).toBeTruthy();
+  });
+});
+
+describe("claim labels", () => {
+  it("keeps a guess, a facilitator-supported observation, a dispute, and session verification distinct", () => {
+    expect(displayStatus("open")).toBe("Guess");
+    expect(displayStatus("hypothesis", "No participant has accepted an interpretation.")).toBe("Guess");
+    expect(displayStatus("hypothesis")).toBe("Proposed");
+    expect(displayStatus("awaiting", "Facilitator-supported observation. One person recorded the matching checks. This is not shared verification.")).toBe("Facilitator-supported observation");
+    expect(displayStatus("disputed")).toBe("Disputed");
+    expect(displayStatus("verified")).toBe("Session-verified");
+    expect(displayStatus("tentative")).toBe("Accepted, not session-verified");
   });
 });
