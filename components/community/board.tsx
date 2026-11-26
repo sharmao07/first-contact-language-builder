@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { ArrowDown, ArrowUp, GripVertical, LayoutGrid, Send } from "lucide-react";
 import { useSessionContext } from "@/components/session/provider";
-import { Notice, StatusText } from "@/components/ui/bits";
+import { EmptyState, Notice, PageHeader, StatusText } from "@/components/ui/bits";
 import { api, ApiError } from "@/lib/client/api";
 
 export function CommunicationBoard() {
@@ -19,7 +20,7 @@ export function CommunicationBoard() {
   const selected = picked.map((id) => verified.find((concept) => concept.id === id)).filter((item) => item != null);
 
   function toggle(id: string) {
-    setPicked((current) => current.includes(id) ? current.filter((item) => item !== id) : [...current, id]);
+    setPicked((current) => (current.includes(id) ? current.filter((item) => item !== id) : [...current, id]));
   }
 
   function move(id: string, direction: -1 | 1) {
@@ -78,76 +79,141 @@ export function CommunicationBoard() {
   }
 
   return (
-    <div className="wrap section stack">
-      <h1>Shared board</h1>
-      <p>Only session-verified meanings can be arranged into a row. Showing that row asks whether it was understood. The row is not a translation, and the order is not a grammar.</p>
-      {message ? <Notice>{message}</Notice> : null}
-      <h2>Session-verified</h2>
-      <div className="tile-grid" role="list">
-        {verified.map((concept) => {
-          const on = picked.includes(concept.id);
-          return (
-            <button key={concept.id} type="button" className={on ? "btn concept-chip is-selected" : "btn concept-chip"} aria-pressed={on} onClick={() => toggle(concept.id)}>
-              <strong>{concept.agreedMeaning || concept.conceptCode}</strong>
-              <StatusText status={concept.status} reason={concept.statusReason} />
-            </button>
-          );
-        })}
-      </div>
-      {verified.length === 0 ? <p>Nothing is session-verified yet. A meaning stays off this row until two people have matched it on different examples and methods.</p> : null}
-      <h2>Still uncertain</h2>
-      <div className="tile-grid" role="list">
-        {uncertain.map((concept) => (
-          <article key={concept.id} className="rule stack-sm">
-            <strong>{concept.agreedMeaning || concept.conceptCode}</strong>
-            <StatusText status={concept.status} reason={concept.statusReason} />
-            <p className="small">Not an established meaning in this session.</p>
-          </article>
-        ))}
-      </div>
-      {uncertain.length === 0 ? <p className="small">No unresolved or disputed concepts are on record.</p> : null}
-      <div className="stack">
-        <h2>This expression</h2>
-        {selected.length === 0 ? <p className="small">Choose session-verified meanings above. Drag a row to change the order, or use Earlier and Later.</p> : null}
-        {selected.map((concept, index) => (
-          <div
-            key={concept.id}
-            className={dragId === concept.id ? "row is-dragging" : "row"}
-            draggable
-            onDragStart={() => setDragId(concept.id)}
-            onDragOver={(event) => event.preventDefault()}
-            onDrop={() => {
-              if (!dragId || dragId === concept.id) return;
-              setPicked((current) => {
-                const next = current.filter((id) => id !== dragId);
-                const at = next.indexOf(concept.id);
-                next.splice(at < 0 ? next.length : at, 0, dragId);
-                return next;
-              });
-              setDragId(null);
-            }}
-          >
-            <span>{index + 1}. {concept.agreedMeaning || concept.conceptCode}</span>
-            <button type="button" className="btn" onClick={() => move(concept.id, -1)} aria-label={`Move ${concept.agreedMeaning || concept.conceptCode} earlier`}>Earlier</button>
-            <button type="button" className="btn" onClick={() => move(concept.id, 1)} aria-label={`Move ${concept.agreedMeaning || concept.conceptCode} later`}>Later</button>
-          </div>
-        ))}
-        <button type="button" className="btn btn-primary" aria-busy={pending} disabled={pending || selected.length === 0} onClick={show}>{pending ? "Showing the row…" : "Show this to the other person"}</button>
-      </div>
-      <div className="stack">
-        <h2>Shown already</h2>
-        {state.expressions.map((expression) => (
-          <article key={expression.id} className="rule stack-sm">
-            <p>{expression.conceptIds.map((id) => concepts.find((concept) => concept.id === id)?.agreedMeaning || id).join("  ·  ") || expression.title}</p>
-            <p className="small">{expression.orderNote}</p>
-            <p className="small">{expression.shownAt ? "Shown" : "Not shown yet"}{expression.comprehension ? ` · ${expression.comprehension}` : ""}</p>
-            <div className="row">
-              <button type="button" className="btn" disabled={pending} onClick={() => mark(expression.id, "understood")}>Understood</button>
-              <button type="button" className="btn" disabled={pending} onClick={() => mark(expression.id, "unclear")}>Not understood</button>
-              <button type="button" className="btn" disabled={pending} onClick={() => mark(expression.id, "clarification")}>Ask for clarification</button>
+    <div className="wrap page-pad stack-lg">
+      <PageHeader
+        eyebrow="Verified-only arrangement"
+        title="Shared board"
+        description="Only session-verified meanings can be arranged into a row. Showing that row asks whether it was understood. The row is not a translation, and the order is not a grammar."
+      />
+
+      {message ? <Notice tone="error">{message}</Notice> : null}
+
+      <div className="split-aside">
+        <div className="stack-lg">
+          <section className="surface stack">
+            <div className="row-between">
+              <h2>Session-verified</h2>
+              <span className="mono small muted">{verified.length} available</span>
             </div>
-          </article>
-        ))}
+            <div className="tile-grid" role="list">
+              {verified.map((concept) => {
+                const on = picked.includes(concept.id);
+                return (
+                  <button
+                    key={concept.id}
+                    type="button"
+                    className={on ? "btn concept-chip is-selected" : "btn concept-chip"}
+                    aria-pressed={on}
+                    onClick={() => toggle(concept.id)}
+                  >
+                    <strong>{concept.agreedMeaning || concept.conceptCode}</strong>
+                    <StatusText status={concept.status} reason={concept.statusReason} />
+                  </button>
+                );
+              })}
+            </div>
+            {verified.length === 0 ? (
+              <EmptyState
+                icon={LayoutGrid}
+                title="Nothing is session-verified yet"
+                description="A meaning stays off this row until two people have matched it on different examples and methods."
+              />
+            ) : null}
+          </section>
+
+          <section className="surface stack">
+            <div className="row-between">
+              <h2>Still uncertain</h2>
+              <span className="mono small muted">{uncertain.length} held separate</span>
+            </div>
+            {uncertain.length > 0 ? (
+              <div className="tile-grid" role="list">
+                {uncertain.map((concept) => (
+                  <article key={concept.id} className="surface-recessed stack-xs" style={{ padding: 12 }}>
+                    <strong className="small" style={{ color: "var(--ink)" }}>{concept.agreedMeaning || concept.conceptCode}</strong>
+                    <StatusText status={concept.status} reason={concept.statusReason} />
+                    <p className="small muted">Not an established meaning in this session.</p>
+                  </article>
+                ))}
+              </div>
+            ) : (
+              <p className="small muted">No unresolved or disputed concepts are on record.</p>
+            )}
+          </section>
+        </div>
+
+        <div className="stack-lg">
+          <section className="surface stack">
+            <h2>This expression</h2>
+            {selected.length === 0 ? (
+              <p className="small muted">Choose session-verified meanings from the tray. Drag a row to change the order, or use Earlier and Later.</p>
+            ) : null}
+            <div className="stack-sm">
+              {selected.map((concept, index) => (
+                <div
+                  key={concept.id}
+                  className={dragId === concept.id ? "surface-recessed row-between row is-dragging" : "surface-recessed row-between row"}
+                  style={{ padding: "10px 12px" }}
+                  draggable
+                  onDragStart={() => setDragId(concept.id)}
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={() => {
+                    if (!dragId || dragId === concept.id) return;
+                    setPicked((current) => {
+                      const next = current.filter((id) => id !== dragId);
+                      const at = next.indexOf(concept.id);
+                      next.splice(at < 0 ? next.length : at, 0, dragId);
+                      return next;
+                    });
+                    setDragId(null);
+                  }}
+                >
+                  <div className="row" style={{ gap: 8 }}>
+                    <GripVertical size={15} strokeWidth={1.5} className="muted" aria-hidden="true" />
+                    <span className="mono small muted">{index + 1}.</span>
+                    <span style={{ fontWeight: 500 }}>{concept.agreedMeaning || concept.conceptCode}</span>
+                  </div>
+                  <div className="row" style={{ gap: 4 }}>
+                    <button type="button" className="btn btn-sm" onClick={() => move(concept.id, -1)} aria-label={`Move ${concept.agreedMeaning || concept.conceptCode} earlier`}>
+                      <ArrowUp size={13} strokeWidth={1.5} aria-hidden="true" />
+                      Earlier
+                    </button>
+                    <button type="button" className="btn btn-sm" onClick={() => move(concept.id, 1)} aria-label={`Move ${concept.agreedMeaning || concept.conceptCode} later`}>
+                      <ArrowDown size={13} strokeWidth={1.5} aria-hidden="true" />
+                      Later
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+            <button type="button" className="btn btn-primary" aria-busy={pending} disabled={pending || selected.length === 0} onClick={show}>
+              <Send size={15} strokeWidth={1.5} aria-hidden="true" />
+              {pending ? "Showing the row…" : "Show this to the other person"}
+            </button>
+          </section>
+
+          <section className="surface stack">
+            <h2>Shown already</h2>
+            {state.expressions.length === 0 ? <p className="small muted">No board rows have been shown yet.</p> : null}
+            {state.expressions.map((expression) => (
+              <article key={expression.id} className="surface-recessed stack-sm" style={{ padding: 14 }}>
+                <p style={{ fontWeight: 500 }}>
+                  {expression.conceptIds.map((id) => concepts.find((concept) => concept.id === id)?.agreedMeaning || id).join("  ·  ") || expression.title}
+                </p>
+                <p className="small muted">{expression.orderNote}</p>
+                <p className="small">
+                  {expression.shownAt ? "Shown" : "Not shown yet"}
+                  {expression.comprehension ? ` · ${expression.comprehension}` : ""}
+                </p>
+                <div className="row">
+                  <button type="button" className="btn btn-sm" disabled={pending} onClick={() => mark(expression.id, "understood")}>Understood</button>
+                  <button type="button" className="btn btn-sm" disabled={pending} onClick={() => mark(expression.id, "unclear")}>Not understood</button>
+                  <button type="button" className="btn btn-sm" disabled={pending} onClick={() => mark(expression.id, "clarification")}>Ask for clarification</button>
+                </div>
+              </article>
+            ))}
+          </section>
+        </div>
       </div>
     </div>
   );

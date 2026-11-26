@@ -1,7 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { Download } from "lucide-react";
 import { useSessionContext } from "@/components/session/provider";
+import { Notice, PageHeader, StatCard } from "@/components/ui/bits";
 import { api } from "@/lib/client/api";
 
 type Summary = {
@@ -55,28 +57,46 @@ export function ImpactReport() {
   }
 
   return (
-    <div className="wrap section stack">
-      <h1>Community record</h1>
-      <p>Counts below come from this session. A prototype does not show that inequality has been reduced.</p>
-      {error ? <p>{error}</p> : null}
+    <div className="wrap page-pad stack-lg">
+      <PageHeader
+        eyebrow="Session metrics"
+        title="Community record"
+        description="Counts below come from this session. A prototype does not show that inequality has been reduced."
+        actions={
+          summary ? (
+            <button type="button" className="btn btn-primary" onClick={download}>
+              <Download size={15} strokeWidth={1.5} aria-hidden="true" />
+              Download this record
+            </button>
+          ) : null
+        }
+      />
+
+      {error ? <Notice tone="error">{error}</Notice> : null}
+
       {summary ? (
         <>
-          <p>{summary.note}</p>
-          <p className="small">{summary.sample ? "Sample session." : "Recorded session."} {summary.simulated ? "Simulated." : "Not a simulation."}</p>
-          <dl className="stack-sm">
+          <Notice>
+            {summary.note} ({summary.sample ? "Sample session." : "Recorded session."} {summary.simulated ? "Simulated." : "Not a simulation."})
+          </Notice>
+
+          <div className="grid-4">
             {rows.map(([key, label]) => (
-              <div key={key} className="row" style={{ justifyContent: "space-between" }}>
-                <dt>{label}</dt>
-                <dd className="mono">{String(summary[key])}</dd>
-              </div>
+              <StatCard key={key} label={label} value={String(summary[key])} />
             ))}
-            <div className="row" style={{ justifyContent: "space-between" }}>
-              <dt>Time to first session-verified concept</dt>
-              <dd className="mono">{summary.minutesToFirstAgreement === null ? "None yet" : `${summary.minutesToFirstAgreement} min`}</dd>
-            </div>
-          </dl>
-          <button type="button" className="btn btn-primary" onClick={download}>Download this record</button>
+            <StatCard
+              label="Time to first session-verified concept"
+              value={summary.minutesToFirstAgreement === null ? "None yet" : `${summary.minutesToFirstAgreement} min`}
+            />
+          </div>
         </>
+      ) : !error ? (
+        <div className="grid-4">
+          <div className="surface stack-sm"><div className="skeleton" /><div className="skeleton" style={{ width: "40%" }} /></div>
+          <div className="surface stack-sm"><div className="skeleton" /><div className="skeleton" style={{ width: "40%" }} /></div>
+          <div className="surface stack-sm"><div className="skeleton" /><div className="skeleton" style={{ width: "40%" }} /></div>
+          <div className="surface stack-sm"><div className="skeleton" /><div className="skeleton" style={{ width: "40%" }} /></div>
+        </div>
       ) : null}
     </div>
   );

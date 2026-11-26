@@ -37,7 +37,7 @@ export default function RootLayout({ children }: Readonly<{ children: React.Reac
       <body>
         <a className="skip" href="#content">Skip to content</a>
         {children}
-        <SpeedInsights />
+        {process.env.VERCEL ? <SpeedInsights /> : null}
         <noscript>
           <p className="wrap" style={{ padding: "1rem 0" }}>
             The discovery workspace needs JavaScript. Reading the introduction does not.

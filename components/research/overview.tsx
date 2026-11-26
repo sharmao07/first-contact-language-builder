@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { SiteHeader } from "@/components/layout/site";
-import { StatusText } from "@/components/ui/bits";
+import { ArrowLeft, Download } from "lucide-react";
+import { SiteFooter, SiteHeader } from "@/components/layout/site";
+import { Notice, PageHeader, StatCard, StatusText } from "@/components/ui/bits";
 import { readIdentity } from "@/lib/client/identity";
 
 type Snapshot = {
@@ -56,75 +57,132 @@ export function ResearchView({ code }: { code?: string }) {
   return (
     <>
       <SiteHeader />
-      <main id="content" className="wrap section stack">
-        <h1>{code ? `Research for ${code}` : "Research dashboard"}</h1>
-        <p>{data?.localNote ?? "Counts come from the local database."}</p>
-        {error ? <p>{error}</p> : null}
-        {!data && !error ? <div className="skeleton" /> : null}
+      <main id="content" className="wrap page-pad stack-lg">
+        <PageHeader
+          eyebrow="Facilitator corpus & export"
+          title={code ? `Research for ${code}` : "Research dashboard"}
+          description={data?.localNote ?? "Counts come from the local database."}
+          actions={
+            code ? (
+              <Link className="btn btn-sm" href={`/session/${code}`}>
+                <ArrowLeft size={14} strokeWidth={1.5} aria-hidden="true" />
+                Back to {code}
+              </Link>
+            ) : null
+          }
+        />
+
+        {error ? <Notice>{error}</Notice> : null}
+
+        {!data && !error ? (
+          <div className="grid-3">
+            <div className="surface stack-sm"><div className="skeleton" /><div className="skeleton" style={{ width: "45%" }} /></div>
+            <div className="surface stack-sm"><div className="skeleton" /><div className="skeleton" style={{ width: "45%" }} /></div>
+            <div className="surface stack-sm"><div className="skeleton" /><div className="skeleton" style={{ width: "45%" }} /></div>
+          </div>
+        ) : null}
+
         {data ? (
           <>
             <div className="grid-3">
-              <Stat label="Sessions" value={`${data.totals.sessions}`} detail={`${data.totals.illustrativeSessions} illustrative`} />
-              <Stat label="Concepts" value={`${data.totals.concepts}`} detail={`${data.totals.verified} session-verified, ${data.totals.disputed} disputed, ${data.totals.reopened} reopened`} />
-              <Stat label="Open hypotheses" value={`${data.totals.pendingHypotheses}`} detail={`${data.totals.tentative} tentative, ${data.totals.awaiting} awaiting`} />
-              <Stat label="Evidence" value={`${data.totals.evidence}`} detail="Files and notes stored locally" />
-              <Stat label="Checks" value={`${data.totals.checks}`} detail={`${data.totals.correct} marked as matching`} />
-              <Stat label="Match share" value={data.totals.verificationShare === null ? "No checks" : `${Math.round(data.totals.verificationShare * 100)}%`} detail="Share of recorded checks marked correct. Not a scientific success rate." />
+              <StatCard label="Sessions" value={data.totals.sessions} detail={`${data.totals.illustrativeSessions} illustrative`} />
+              <StatCard label="Concepts" value={data.totals.concepts} detail={`${data.totals.verified} session-verified, ${data.totals.disputed} disputed, ${data.totals.reopened} reopened`} />
+              <StatCard label="Open hypotheses" value={data.totals.pendingHypotheses} detail={`${data.totals.tentative} tentative, ${data.totals.awaiting} awaiting`} />
+              <StatCard label="Evidence" value={data.totals.evidence} detail="Files and notes stored locally" />
+              <StatCard label="Checks" value={data.totals.checks} detail={`${data.totals.correct} marked as matching`} />
+              <StatCard
+                label="Match share"
+                value={data.totals.verificationShare === null ? "No checks" : `${Math.round(data.totals.verificationShare * 100)}%`}
+                detail="Share of recorded checks marked correct. Not a scientific success rate."
+              />
             </div>
-            <div className="row">
-              <ExportLink code={code} format="json" label="Export JSON" />
-              <ExportLink code={code} format="csv" dataset="concepts" label="Concepts CSV" />
-              <ExportLink code={code} format="csv" dataset="hypotheses" label="Hypotheses CSV" />
-              <ExportLink code={code} format="csv" dataset="evidence" label="Evidence CSV" />
-              <ExportLink code={code} format="csv" dataset="checks" label="Checks CSV" />
-              <ExportLink code={code} format="csv" dataset="relationships" label="Relationships CSV" />
-              <ExportLink code={code} format="md" label="Research report" />
-            </div>
-            <h2>Sessions</h2>
-            {data.sessions.map((session) => (
-              <article key={session.code} className="block stack-sm">
-                <h3>{session.name}</h3>
-                <p className="mono small">{session.code}</p>
-                {session.isIllustrative ? <p className="small">Illustrative sample, not fieldwork.</p> : null}
-                <p className="small">{session.counts.concepts} concepts, {session.counts.verified} verified, {session.counts.disputed} disputed, {session.counts.evidence} evidence items.</p>
-                <Link href={`/research/${session.code}`}>Session research</Link>
-              </article>
-            ))}
-            <h2>Concepts</h2>
-            <div className="stack">
-              {data.concepts.map((concept) => (
-                <p key={concept.id} className="small">
-                  <Link href={`/session/${concept.sessionCode}/concept/${concept.id}`}>{concept.conceptCode} {concept.agreedMeaning || "Unnamed"}</Link>
-                  {" "}
-                  <StatusText status={concept.status} reason={concept.statusReason} />
-                </p>
-              ))}
-            </div>
-            <h2>Timeline</h2>
-            {data.timeline.map((event) => (
-              <p key={event.id} className="small">{new Date(event.createdAt).toLocaleString()} · {event.sessionCode} · {event.actor ? `${event.actor}: ` : ""}{event.message}</p>
-            ))}
-            <h2>Contributions</h2>
-            <table>
-              <thead>
-                <tr><th>Person</th><th>Session</th><th>Evidence</th><th>Checks</th><th>Notes</th><th>Proposals</th></tr>
-              </thead>
-              <tbody>
-                {data.contributions.map((row) => (
-                  <tr key={`${row.sessionCode}-${row.displayName}-${row.role}`}>
-                    <td>{row.displayName} ({row.role})</td>
-                    <td className="mono">{row.sessionCode}</td>
-                    <td>{row.evidence}</td>
-                    <td>{row.checks}</td>
-                    <td>{row.notes}</td>
-                    <td>{row.proposals}</td>
-                  </tr>
+
+            <section className="surface stack-sm">
+              <h2>Export local records</h2>
+              <div className="row">
+                <ExportLink code={code} format="json" label="Export JSON" />
+                <ExportLink code={code} format="md" label="Research report" />
+                <ExportLink code={code} format="csv" dataset="concepts" label="Concepts CSV" />
+                <ExportLink code={code} format="csv" dataset="hypotheses" label="Hypotheses CSV" />
+                <ExportLink code={code} format="csv" dataset="evidence" label="Evidence CSV" />
+                <ExportLink code={code} format="csv" dataset="checks" label="Checks CSV" />
+                <ExportLink code={code} format="csv" dataset="relationships" label="Relationships CSV" />
+              </div>
+            </section>
+
+            <div className="grid-2">
+              <section className="surface stack">
+                <h2>Sessions</h2>
+                {data.sessions.map((session) => (
+                  <article key={session.code} className="surface-recessed stack-xs" style={{ padding: 14 }}>
+                    <div className="row-between">
+                      <h3>{session.name}</h3>
+                      <span className="mono small" style={{ color: "var(--oxide)" }}>{session.code}</span>
+                    </div>
+                    {session.isIllustrative ? <p className="small muted">Illustrative sample, not fieldwork.</p> : null}
+                    <p className="small">
+                      {session.counts.concepts} concepts, {session.counts.verified} verified, {session.counts.disputed} disputed, {session.counts.evidence} evidence items.
+                    </p>
+                    <div>
+                      <Link className="btn btn-sm" href={`/research/${session.code}`}>Session research</Link>
+                    </div>
+                  </article>
                 ))}
-              </tbody>
-            </table>
+              </section>
+
+              <section className="surface stack">
+                <h2>Concepts</h2>
+                <div className="stack-xs">
+                  {data.concepts.map((concept) => (
+                    <div key={concept.id} className="row-between surface-recessed" style={{ padding: "8px 12px" }}>
+                      <Link className="small" href={`/session/${concept.sessionCode}/concept/${concept.id}`}>
+                        <span className="mono muted">{concept.conceptCode}</span> {concept.agreedMeaning || "Unnamed"}
+                      </Link>
+                      <StatusText status={concept.status} reason={concept.statusReason} />
+                    </div>
+                  ))}
+                </div>
+              </section>
+            </div>
+
+            <section className="stack">
+              <h2>Contributions</h2>
+              <div className="table-wrap">
+                <table>
+                  <thead>
+                    <tr><th>Person</th><th>Session</th><th>Evidence</th><th>Checks</th><th>Notes</th><th>Proposals</th></tr>
+                  </thead>
+                  <tbody>
+                    {data.contributions.map((row) => (
+                      <tr key={`${row.sessionCode}-${row.displayName}-${row.role}`}>
+                        <td>{row.displayName} ({row.role})</td>
+                        <td className="mono">{row.sessionCode}</td>
+                        <td className="mono">{row.evidence}</td>
+                        <td className="mono">{row.checks}</td>
+                        <td className="mono">{row.notes}</td>
+                        <td className="mono">{row.proposals}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </section>
+
+            <section className="surface stack">
+              <h2>Timeline</h2>
+              <ol className="timeline">
+                {data.timeline.map((event) => (
+                  <li key={event.id}>
+                    <strong className="small" style={{ color: "var(--ink)" }}>{event.message}</strong>
+                    <span>{new Date(event.createdAt).toLocaleString()} · {event.sessionCode}{event.actor ? ` · ${event.actor}` : ""}</span>
+                  </li>
+                ))}
+              </ol>
+            </section>
           </>
         ) : null}
       </main>
+      <SiteFooter />
     </>
   );
 }
@@ -135,7 +193,7 @@ function ExportLink({ code, format, dataset, label }: { code?: string; format: s
   if (code) query.set("code", code);
   return (
     <a
-      className="btn"
+      className="btn btn-sm"
       href={`/api/research/export?${query.toString()}`}
       onClick={(event) => {
         const token = code ? readIdentity(code)?.token : null;
@@ -154,17 +212,8 @@ function ExportLink({ code, format, dataset, label }: { code?: string; format: s
           });
       }}
     >
+      <Download size={13} strokeWidth={1.5} aria-hidden="true" />
       {label}
     </a>
-  );
-}
-
-function Stat({ label, value, detail }: { label: string; value: string; detail: string }) {
-  return (
-    <div className="rule stack-sm">
-      <p className="small">{label}</p>
-      <p style={{ fontFamily: "var(--font-display)", fontSize: "1.8rem" }}>{value}</p>
-      <p className="small muted">{detail}</p>
-    </div>
   );
 }

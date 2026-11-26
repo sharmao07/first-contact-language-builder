@@ -1,9 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { Camera, FileText, Hand, ImageIcon, Mic, Pencil, PersonStanding, Video } from "lucide-react";
+import { Camera, Eraser, FileText, Hand, ImageIcon, Mic, Pencil, PersonStanding, Square, Trash2, Upload, Video } from "lucide-react";
 import { Field, Notice } from "@/components/ui/bits";
 import { PreviewFrame } from "@/components/ui/media";
+import { MotionSwap } from "@/components/ui/motion";
 import { api, ApiError } from "@/lib/client/api";
 import { ACTION_CATEGORIES, CATEGORY_LABEL } from "@/lib/constants";
 import type { ConceptDTO } from "@/lib/types";
@@ -115,7 +116,12 @@ export function Composer({
   }
 
   return (
-    <form className="stack" onSubmit={submit}>
+    <form className="surface stack" onSubmit={submit}>
+      <div className="row-between">
+        <h3>Record evidence</h3>
+        <span className="small muted">Images 8 MB · Audio 10 MB · Video 25 MB</span>
+      </div>
+
       <div
         className="segment"
         role="tablist"
@@ -130,50 +136,79 @@ export function Composer({
         }}
       >
         {modes.map(([id, label, Icon]) => (
-          <button key={id} type="button" role="tab" aria-selected={mode === id} className="btn" onClick={() => { setMode(id); takeFile(null); }}>
-            <Icon size={16} strokeWidth={1.5} aria-hidden="true" />
-            {label}
+          <button
+            key={id}
+            type="button"
+            role="tab"
+            aria-selected={mode === id}
+            className="btn"
+            onClick={() => {
+              setMode(id);
+              takeFile(null);
+            }}
+          >
+            <Icon size={15} strokeWidth={1.5} aria-hidden="true" />
+            <span>{label}</span>
           </button>
         ))}
       </div>
-      <div key={mode} className="page-enter">
-      {mode === "camera" ? <CameraCapture onCapture={takeFile} /> : null}
-      {mode === "image" ? <ImageDrop file={file} preview={preview} onFile={takeFile} /> : null}
-      {mode === "drawing" ? <DrawingPad onSave={takeFile} /> : null}
-      {mode === "audio" ? <AudioCapture file={file} onFile={takeFile} onDuration={setDurationMs} /> : null}
-      {mode === "video" ? (
-        <Field label="Video file" hint="A short recording of what was shown. The app does not interpret the video by itself.">
-          <input className="control" type="file" accept="video/webm,video/mp4,video/quicktime" onChange={(event) => takeFile(event.target.files?.[0] ?? null)} />
-        </Field>
-      ) : null}
-      {mode === "note" ? <p className="small">A written description of what someone expressed. It is an observation, not a translation.</p> : null}
-      {mode === "gesture" || mode === "demonstration" ? (
-        <GestureFields
-          actionCategory={actionCategory}
-          onAction={setActionCategory}
-          file={file}
-          onFile={takeFile}
-          direction={gestureDirection}
-          repetition={gestureRepetition}
-          body={gestureBody}
-          onDirection={setGestureDirection}
-          onRepetition={setGestureRepetition}
-          onBody={setGestureBody}
-          onDuration={setDurationMs}
-          onFrame={(frame, note) => {
-            takeFile(frame);
-            setNotes((current) => current || note);
-            setConsent(false);
-          }}
-        />
-      ) : null}
-      </div>
+
+      <MotionSwap motionKey={mode} className="surface-recessed stack-sm">
+        {mode === "camera" ? <CameraCapture onCapture={takeFile} /> : null}
+        {mode === "image" ? <ImageDrop file={file} preview={preview} onFile={takeFile} /> : null}
+        {mode === "drawing" ? <DrawingPad onSave={takeFile} /> : null}
+        {mode === "audio" ? <AudioCapture file={file} onFile={takeFile} onDuration={setDurationMs} /> : null}
+        {mode === "video" ? (
+          <Field label="Video file" hint="A short recording of what was shown. The app does not interpret the video by itself.">
+            <input className="control" type="file" accept="video/webm,video/mp4,video/quicktime" onChange={(event) => takeFile(event.target.files?.[0] ?? null)} />
+          </Field>
+        ) : null}
+        {mode === "note" ? <p className="small">A written description of what someone expressed. It is an observation, not a translation.</p> : null}
+        {mode === "gesture" || mode === "demonstration" ? (
+          <GestureFields
+            actionCategory={actionCategory}
+            onAction={setActionCategory}
+            file={file}
+            onFile={takeFile}
+            direction={gestureDirection}
+            repetition={gestureRepetition}
+            body={gestureBody}
+            onDirection={setGestureDirection}
+            onRepetition={setGestureRepetition}
+            onBody={setGestureBody}
+            onDuration={setDurationMs}
+            onFrame={(frame, note) => {
+              takeFile(frame);
+              setNotes((current) => current || note);
+              setConsent(false);
+            }}
+          />
+        ) : null}
+      </MotionSwap>
+
       <Field label="Description">
-        <textarea className="textarea" value={description} onChange={(event) => setDescription(event.target.value)} placeholder="What happened, in your own words?" />
+        <textarea
+          className="textarea"
+          value={description}
+          onChange={(event) => setDescription(event.target.value)}
+          placeholder="What happened, in your own words?"
+        />
       </Field>
-      <Field label="Context note">
-        <input className="control" value={notes} onChange={(event) => setNotes(event.target.value)} />
-      </Field>
+
+      <div className="grid-2">
+        <Field label="Context note">
+          <input className="control" value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Where, when, or who was present" />
+        </Field>
+        <Field label="What kind of record is this?">
+          <select className="select" value={stance} onChange={(event) => setStance(event.target.value)}>
+            <option value="observation">Direct observation</option>
+            <option value="participant_interpretation">Participant interpretation</option>
+            <option value="confirmatory">Confirmatory response</option>
+            <option value="contradictory">Contradictory evidence</option>
+          </select>
+        </Field>
+      </div>
+
       <Field label="Attach to a concept" hint="Optional. Leave this empty if the meaning is still unknown.">
         <select className="select" value={conceptId} onChange={(event) => setConceptId(event.target.value)}>
           <option value="">No concept yet</option>
@@ -182,23 +217,30 @@ export function Composer({
           ))}
         </select>
       </Field>
-      <Field label="What kind of record is this?">
-        <select className="select" value={stance} onChange={(event) => setStance(event.target.value)}>
-          <option value="observation">Direct observation</option>
-          <option value="participant_interpretation">Participant interpretation</option>
-          <option value="confirmatory">Confirmatory response</option>
-          <option value="contradictory">Contradictory evidence</option>
-        </select>
-      </Field>
-      <label className="small row">
-        <input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} />
-        Send this file to the configured AI provider. Leave this off to keep the file on this computer. Demo mode never inspects the file.
+
+      <label className="surface-recessed row" style={{ alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
+        <input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} style={{ marginTop: 3 }} />
+        <span className="small">
+          Send this file to the configured AI provider. Leave this off to keep the file on this computer. Demo mode never inspects the file.
+        </span>
       </label>
-      {stance === "contradictory" ? <p className="small">Attaching this to a concept reopens it. Earlier checks stay in the history and do not carry over.</p> : null}
-      <button className="btn btn-primary" type="submit" disabled={pending} aria-busy={pending}>{pending ? "Saving the record…" : "Submit evidence"}</button>
-      {file ? <p className="small">Ready to submit. Nothing is saved until you submit.</p> : null}
+
+      {stance === "contradictory" ? (
+        <Notice tone="warning">Attaching this to a concept reopens it. Earlier checks stay in the history and do not carry over.</Notice>
+      ) : null}
+
+      <div className="row-between">
+        <div className="row">
+          <button className="btn btn-primary" type="submit" disabled={pending} aria-busy={pending}>
+            <Upload size={15} strokeWidth={1.5} aria-hidden="true" />
+            {pending ? "Saving the record…" : "Submit evidence"}
+          </button>
+          {file ? <span className="small muted">Ready to submit ({file.name}).</span> : null}
+        </div>
+        <span className="small muted">SVG uploads are rejected.</span>
+      </div>
+
       {message ? <Notice>{message}</Notice> : null}
-      <p className="small muted">Images up to 8 MB, audio up to 10 MB, video up to 25 MB. SVG uploads are rejected.</p>
     </form>
   );
 }
@@ -220,7 +262,16 @@ function ImageDrop({ file, preview, onFile }: { file: File | null; preview: stri
         <input className="control" type="file" accept="image/jpeg,image/png,image/gif,image/webp" onChange={(event) => onFile(event.target.files?.[0] ?? null)} />
       </Field>
       {preview && preview !== "file" ? <PreviewFrame src={preview} alt={file?.name || "Selected image"} /> : null}
-      {file ? <button type="button" className="btn" onClick={() => onFile(null)}>Remove image</button> : <p className="small muted">Drop an image here or choose a file.</p>}
+      {file ? (
+        <div>
+          <button type="button" className="btn btn-sm" onClick={() => onFile(null)}>
+            <Trash2 size={14} strokeWidth={1.5} aria-hidden="true" />
+            Remove image
+          </button>
+        </div>
+      ) : (
+        <p className="small muted">Drop an image here or choose a file.</p>
+      )}
     </div>
   );
 }
@@ -279,13 +330,13 @@ function CameraCapture({ onCapture }: { onCapture: (file: File | null) => void }
   return (
     <div className="stack-sm">
       <p className="small">The browser will ask before the camera starts.</p>
-      {error ? <Notice>{error}</Notice> : null}
-      <video ref={videoRef} playsInline muted style={{ width: "100%", display: live && !shot ? "block" : "none", background: "var(--bg-sink)" }} />
+      {error ? <Notice tone="error">{error}</Notice> : null}
+      <video ref={videoRef} playsInline muted className="thumb" style={{ display: live && !shot ? "block" : "none" }} />
       {shot ? <PreviewFrame src={shot} alt="Captured frame" /> : null}
       <div className="row">
-        {!live ? <button type="button" className="btn" onClick={() => void openCamera()}>Open camera</button> : null}
-        {live && !shot ? <button type="button" className="btn" onClick={capture}>Capture</button> : null}
-        {shot ? <button type="button" className="btn" onClick={retake}>Retake</button> : null}
+        {!live ? <button type="button" className="btn btn-sm" onClick={() => void openCamera()}><Camera size={14} strokeWidth={1.5} aria-hidden="true" /> Open camera</button> : null}
+        {live && !shot ? <button type="button" className="btn btn-sm btn-primary" onClick={capture}>Capture</button> : null}
+        {shot ? <button type="button" className="btn btn-sm" onClick={retake}>Retake</button> : null}
       </div>
     </div>
   );
@@ -304,10 +355,10 @@ function DrawingPad({ onSave }: { onSave: (file: File | null) => void }) {
     if (!canvas) return;
     const rect = canvas.getBoundingClientRect();
     canvas.width = Math.max(1, Math.floor(rect.width));
-    canvas.height = 240;
+    canvas.height = 220;
     const context = canvas.getContext("2d");
     if (!context) return;
-    context.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--bg-elev").trim() || "#faf7f1";
+    context.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--bg-elev").trim() || "#fcfaf6";
     context.fillRect(0, 0, canvas.width, canvas.height);
   }, []);
 
@@ -335,7 +386,7 @@ function DrawingPad({ onSave }: { onSave: (file: File | null) => void }) {
       context.globalCompositeOperation = "destination-out";
     } else {
       context.globalCompositeOperation = "source-over";
-      context.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue("--ink").trim() || "#1c2430";
+      context.strokeStyle = getComputedStyle(document.documentElement).getPropertyValue("--ink").trim() || "#1d1915";
     }
     context.beginPath();
     context.moveTo(last.current.x, last.current.y);
@@ -357,8 +408,9 @@ function DrawingPad({ onSave }: { onSave: (file: File | null) => void }) {
     const context = canvas?.getContext("2d");
     if (!canvas || !context) return;
     context.globalCompositeOperation = "source-over";
-    context.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--bg-elev").trim() || "#faf7f1";
+    context.fillStyle = getComputedStyle(document.documentElement).getPropertyValue("--bg-elev").trim() || "#fcfaf6";
     context.fillRect(0, 0, canvas.width, canvas.height);
+    setSaved(false);
     onSave(null);
   }
 
@@ -372,15 +424,21 @@ function DrawingPad({ onSave }: { onSave: (file: File | null) => void }) {
         onPointerUp={() => { drawing.current = false; last.current = null; }}
         onPointerLeave={() => { drawing.current = false; last.current = null; }}
       />
-      <div className="row">
-        <label className="small">Brush
+      <div className="row-between">
+        <label className="row small" style={{ gap: 8 }}>
+          <span>Brush {size}px</span>
           <input type="range" min={2} max={24} value={size} onChange={(event) => setSize(Number(event.target.value))} />
         </label>
-        <button type="button" className={erase ? "btn btn-primary" : "btn"} onClick={() => setErase((value) => !value)}>{erase ? "Erasing" : "Erase"}</button>
-        <button type="button" className="btn" onClick={clear}>Clear</button>
-        <button type="button" className="btn" onClick={save}>Use this drawing</button>
+        <div className="row">
+          <button type="button" className={erase ? "btn btn-sm is-selected" : "btn btn-sm"} onClick={() => setErase((value) => !value)}>
+            <Eraser size={14} strokeWidth={1.5} aria-hidden="true" />
+            {erase ? "Erasing" : "Erase"}
+          </button>
+          <button type="button" className="btn btn-sm" onClick={clear}>Clear</button>
+          <button type="button" className="btn btn-sm btn-primary" onClick={save}>Use this drawing</button>
+        </div>
       </div>
-      {saved ? <p className="small" role="status">Drawing is ready to submit. It is not saved until you submit the record.</p> : null}
+      {saved ? <p className="small muted" role="status">Drawing is ready to submit. It is not saved until you submit the record.</p> : null}
     </div>
   );
 }
@@ -437,12 +495,27 @@ function AudioCapture({ file, onFile, onDuration }: { file: File | null; onFile:
     <div className="stack-sm">
       <p className="small">The browser will ask before the microphone starts. Recording stops automatically after one minute.</p>
       {recording ? <p className="banner recording-live" role="status">Recording {Math.floor(elapsed / 1000)}s. Stops at one minute.</p> : null}
-      {error ? <Notice>{error}</Notice> : null}
+      {error ? <Notice tone="error">{error}</Notice> : null}
       <div className="row">
-        {!recording ? <button type="button" className="btn" onClick={() => void start()}>Start recording</button> : <button type="button" className="btn btn-danger" onClick={stop}>Stop recording</button>}
-        {file ? <button type="button" className="btn" onClick={() => { onFile(null); if (url) URL.revokeObjectURL(url); setUrl(null); }}>Delete recording</button> : null}
+        {!recording ? (
+          <button type="button" className="btn btn-sm" onClick={() => void start()}>
+            <Mic size={14} strokeWidth={1.5} aria-hidden="true" />
+            Start recording
+          </button>
+        ) : (
+          <button type="button" className="btn btn-sm btn-danger" onClick={stop}>
+            <Square size={14} strokeWidth={1.5} aria-hidden="true" />
+            Stop recording
+          </button>
+        )}
+        {file ? (
+          <button type="button" className="btn btn-sm" onClick={() => { onFile(null); if (url) URL.revokeObjectURL(url); setUrl(null); }}>
+            <Trash2 size={14} strokeWidth={1.5} aria-hidden="true" />
+            Delete recording
+          </button>
+        ) : null}
       </div>
-      {url ? <audio controls src={url} onLoadedMetadata={(event) => onDuration(Math.round(event.currentTarget.duration * 1000))} /> : null}
+      {url ? <audio controls src={url} onLoadedMetadata={(event) => onDuration(Math.round(event.currentTarget.duration * 1000))} style={{ width: "100%" }} /> : null}
       <Field label="Or upload audio">
         <input className="control" type="file" accept="audio/*,video/webm" onChange={(event) => onFile(event.target.files?.[0] ?? null)} />
       </Field>
@@ -488,64 +561,76 @@ function GestureFields({
     setUrl(next);
     return () => URL.revokeObjectURL(next);
   }, [file]);
+
   return (
     <div className="stack-sm">
-      <Field label="Action">
-        <select className="select" value={actionCategory} onChange={(event) => onAction(event.target.value)}>
-          {ACTION_CATEGORIES.map((action) => (
-            <option key={action} value={action}>{action}</option>
-          ))}
-        </select>
-      </Field>
-      <Field label="Direction">
-        <input className="control" value={direction} onChange={(event) => onDirection(event.target.value)} />
-      </Field>
-      <Field label="Repetition">
-        <select className="select" value={repetition} onChange={(event) => onRepetition(event.target.value)}>
-          <option value="once">Once</option>
-          <option value="repeated">Repeated</option>
-          <option value="held">Held</option>
-        </select>
-      </Field>
-      <Field label="Body movement">
-        <input className="control" value={body} onChange={(event) => onBody(event.target.value)} placeholder="Hand, arm, head, whole body" />
-      </Field>
-      <p className="small muted">A short video can be stored. The model does not watch the whole file. Capture one frame if you want a vision model to see a still, and then consent separately.</p>
+      <div className="grid-2">
+        <Field label="Action">
+          <select className="select" value={actionCategory} onChange={(event) => onAction(event.target.value)}>
+            {ACTION_CATEGORIES.map((action) => (
+              <option key={action} value={action}>{action}</option>
+            ))}
+          </select>
+        </Field>
+        <Field label="Repetition">
+          <select className="select" value={repetition} onChange={(event) => onRepetition(event.target.value)}>
+            <option value="once">Once</option>
+            <option value="repeated">Repeated</option>
+            <option value="held">Held</option>
+          </select>
+        </Field>
+      </div>
+      <div className="grid-2">
+        <Field label="Direction">
+          <input className="control" value={direction} onChange={(event) => onDirection(event.target.value)} />
+        </Field>
+        <Field label="Body movement">
+          <input className="control" value={body} onChange={(event) => onBody(event.target.value)} placeholder="Hand, arm, head, whole body" />
+        </Field>
+      </div>
+      <p className="small muted">
+        A short video can be stored. The model does not watch the whole file. Capture one frame if you want a vision model to see a still, and then consent separately.
+      </p>
       <Field label="Optional video">
         <input className="control" type="file" accept="video/webm,video/mp4,video/quicktime" onChange={(event) => onFile(event.target.files?.[0] ?? null)} />
       </Field>
       {url ? (
         <video
           ref={videoRef}
+          className="thumb"
           controls
           src={url}
           onLoadedMetadata={(event) => onDuration(Math.round(event.currentTarget.duration * 1000))}
         />
       ) : null}
-      {url ? (
-        <button
-          type="button"
-          className="btn"
-          onClick={() => {
-            const video = videoRef.current;
-            if (!video) return;
-            const canvas = document.createElement("canvas");
-            canvas.width = video.videoWidth || 640;
-            canvas.height = video.videoHeight || 360;
-            const context = canvas.getContext("2d");
-            if (!context) return;
-            context.drawImage(video, 0, 0, canvas.width, canvas.height);
-            canvas.toBlob((blob) => {
-              if (!blob) return;
-              onFrame(new File([blob], "selected-frame.png", { type: "image/png" }), "Selected frame from a video. The rest of the video was not analyzed.");
-            }, "image/png");
-          }}
-        >
-          Use the current frame as the image
-        </button>
-      ) : null}
-      {file ? <button type="button" className="btn" onClick={() => onFile(null)}>Remove video</button> : null}
-      <p className="small">Categories include pointing, drinking, movement, direction, and requests. {CATEGORY_LABEL.actions} stay separate from objects when you accept a meaning later.</p>
+      <div className="row">
+        {url ? (
+          <button
+            type="button"
+            className="btn btn-sm"
+            onClick={() => {
+              const video = videoRef.current;
+              if (!video) return;
+              const canvas = document.createElement("canvas");
+              canvas.width = video.videoWidth || 640;
+              canvas.height = video.videoHeight || 360;
+              const context = canvas.getContext("2d");
+              if (!context) return;
+              context.drawImage(video, 0, 0, canvas.width, canvas.height);
+              canvas.toBlob((blob) => {
+                if (!blob) return;
+                onFrame(new File([blob], "selected-frame.png", { type: "image/png" }), "Selected frame from a video. The rest of the video was not analyzed.");
+              }, "image/png");
+            }}
+          >
+            Use the current frame as the image
+          </button>
+        ) : null}
+        {file ? <button type="button" className="btn btn-sm" onClick={() => onFile(null)}>Remove video</button> : null}
+      </div>
+      <p className="small muted">
+        Categories include pointing, drinking, movement, direction, and requests. {CATEGORY_LABEL.actions} stay separate from objects when you accept a meaning later.
+      </p>
     </div>
   );
 }

@@ -2,8 +2,9 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-import { SiteHeader } from "@/components/layout/site";
-import { Field, Notice } from "@/components/ui/bits";
+import { ArrowRight, KeyRound, Plus, UserPlus } from "lucide-react";
+import { SiteFooter, SiteHeader } from "@/components/layout/site";
+import { Field, Notice, PageHeader } from "@/components/ui/bits";
 import { Button } from "@/components/ui/button";
 import { api, ApiError } from "@/lib/client/api";
 import { writeIdentity } from "@/lib/client/identity";
@@ -12,10 +13,18 @@ export default function StartPage() {
   return (
     <>
       <SiteHeader />
-      <main id="content" className="wrap section grid-2">
-        <CreateForm />
-        <JoinForm />
+      <main id="content" className="wrap page-pad stack-lg">
+        <PageHeader
+          eyebrow="Two-seat session setup"
+          title="Open or join a discovery workspace"
+          description="One person creates a session and shares a code like TREE-4821. The second person joins from their own browser so each seat keeps its own responses."
+        />
+        <div className="grid-2" style={{ alignItems: "start" }}>
+          <CreateForm />
+          <JoinForm />
+        </div>
       </main>
+      <SiteFooter />
     </>
   );
 }
@@ -49,9 +58,15 @@ function CreateForm() {
   }
 
   return (
-    <form className="stack" onSubmit={submit}>
-      <h1>Start a session</h1>
-      <p>You will get a code like TREE-4821. The other person joins from their own browser.</p>
+    <form className="surface stack" onSubmit={submit}>
+      <div className="row" style={{ gap: 10 }}>
+        <Plus size={18} strokeWidth={1.5} style={{ color: "var(--oxide)" }} aria-hidden="true" />
+        <div className="stack-xs">
+          <h2>Start a session</h2>
+          <p className="small">You will get a code like TREE-4821. The other person joins from their own browser.</p>
+        </div>
+      </div>
+
       <div className="purpose" role="radiogroup" aria-label="Session purpose">
         {([
           ["community", "Community access", "A newcomer and someone from the local community. This is the guided path."],
@@ -59,17 +74,21 @@ function CreateForm() {
           ["general", "General discovery", "Use the original discovery workspace without a guided situation."],
         ] as const).map(([value, title, copy]) => (
           <button key={value} type="button" className={purpose === value ? "btn is-selected" : "btn"} role="radio" aria-checked={purpose === value} onClick={() => setPurpose(value)}>
-            {title}
+            <strong>{title}</strong>
             <small>{copy}</small>
           </button>
         ))}
       </div>
-      <Field label="Session name">
-        <input className="control" value={name} onChange={(event) => setName(event.target.value)} required maxLength={80} />
-      </Field>
-      <Field label="Your name">
-        <input className="control" value={displayName} onChange={(event) => setDisplayName(event.target.value)} required maxLength={40} />
-      </Field>
+
+      <div className="grid-2">
+        <Field label="Session name">
+          <input className="control" value={name} onChange={(event) => setName(event.target.value)} required maxLength={80} />
+        </Field>
+        <Field label="Your name">
+          <input className="control" value={displayName} onChange={(event) => setDisplayName(event.target.value)} required maxLength={40} placeholder="e.g. Ada" />
+        </Field>
+      </div>
+
       {purpose === "community" ? (
         <Field label="Your role" hint="This describes who guides the steps. It does not give either person authority over meaning.">
           <select className="select" value={communityRole} onChange={(event) => setCommunityRole(event.target.value as "facilitator" | "participant")}>
@@ -85,17 +104,25 @@ function CreateForm() {
           </select>
         </Field>
       )}
+
       {purpose === "community" ? (
-        <label className="row">
-          <input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} />
-          <span>I understand this is shared discovery, not emergency or professional interpretation. Files stay with this session, and suggestions are not treated as verified meanings.</span>
+        <label className="surface-recessed row" style={{ alignItems: "flex-start", gap: 10, cursor: "pointer" }}>
+          <input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} style={{ marginTop: 3 }} />
+          <span className="small" style={{ color: "var(--ink)" }}>
+            I understand this is shared discovery, not emergency or professional interpretation. Files stay with this session, and suggestions are not treated as verified meanings.
+          </span>
         </label>
       ) : null}
+
       <Field label="Note" hint="Optional. Visible to both seats.">
         <textarea className="textarea" value={description} onChange={(event) => setDescription(event.target.value)} maxLength={2000} />
       </Field>
-      <Button tone="primary" type="submit" disabled={pending}>Create session</Button>
-      {message ? <Notice>{message}</Notice> : null}
+
+      <Button tone="primary" type="submit" disabled={pending} aria-busy={pending}>
+        {pending ? "Creating session…" : "Create session"}
+        <ArrowRight size={16} strokeWidth={1.5} aria-hidden="true" />
+      </Button>
+      {message ? <Notice tone="error">{message}</Notice> : null}
     </form>
   );
 }
@@ -147,30 +174,48 @@ function JoinForm() {
 
   return (
     <div className="stack">
-      <form className="stack" onSubmit={join}>
-        <h2>Join with a code</h2>
+      <form className="surface stack" onSubmit={join}>
+        <div className="row" style={{ gap: 10 }}>
+          <UserPlus size={18} strokeWidth={1.5} style={{ color: "var(--oxide)" }} aria-hidden="true" />
+          <div className="stack-xs">
+            <h2>Join with a code</h2>
+            <p className="small">Enter the code shared by the other participant and take the open seat.</p>
+          </div>
+        </div>
         <Field label="Session code">
           <input className="control mono" value={code} onChange={(event) => setCode(event.target.value.toUpperCase())} required placeholder="TREE-4821" />
         </Field>
-        <Field label="Your name">
-          <input className="control" value={displayName} onChange={(event) => setDisplayName(event.target.value)} required maxLength={40} />
-        </Field>
-        <Field label="Seat">
-          <select className="select" value={role} onChange={(event) => setRole(event.target.value as "A" | "B")}>
-            <option value="A">Participant A</option>
-            <option value="B">Participant B</option>
-          </select>
-        </Field>
-        <button className="btn btn-primary" type="submit" disabled={pending}>Join</button>
+        <div className="grid-2">
+          <Field label="Your name">
+            <input className="control" value={displayName} onChange={(event) => setDisplayName(event.target.value)} required maxLength={40} placeholder="e.g. Bao" />
+          </Field>
+          <Field label="Seat">
+            <select className="select" value={role} onChange={(event) => setRole(event.target.value as "A" | "B")}>
+              <option value="A">Participant A</option>
+              <option value="B">Participant B</option>
+            </select>
+          </Field>
+        </div>
+        <button className="btn btn-primary" type="submit" disabled={pending} aria-busy={pending}>
+          {pending ? "Joining…" : "Join"}
+        </button>
       </form>
-      <form className="stack" onSubmit={rejoin}>
-        <h2>Rejoin</h2>
-        <Field label="Recovery key">
-          <input className="control mono" value={recovery} onChange={(event) => setRecovery(event.target.value)} required />
-        </Field>
-        <button className="btn" type="submit" disabled={pending}>Rejoin</button>
-        {message ? <Notice>{message}</Notice> : null}
-      </form>
+
+      <details className="surface">
+        <summary className="row" style={{ cursor: "pointer", fontWeight: 500 }}>
+          <KeyRound size={16} strokeWidth={1.5} className="muted" aria-hidden="true" />
+          Rejoin an existing seat with a recovery key
+        </summary>
+        <form className="stack" style={{ marginTop: 16 }} onSubmit={rejoin}>
+          <p className="small">Use the session code from above and paste the 48-character recovery key saved from your previous browser.</p>
+          <Field label="Recovery key">
+            <input className="control mono" value={recovery} onChange={(event) => setRecovery(event.target.value)} required />
+          </Field>
+          <button className="btn" type="submit" disabled={pending}>Rejoin</button>
+        </form>
+      </details>
+
+      {message ? <Notice tone="error">{message}</Notice> : null}
     </div>
   );
 }

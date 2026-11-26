@@ -2,8 +2,9 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { PenLine } from "lucide-react";
 import { useSessionContext } from "@/components/session/provider";
-import { Field, Notice } from "@/components/ui/bits";
+import { EmptyState, Field, Notice, PageHeader } from "@/components/ui/bits";
 import { api, ApiError } from "@/lib/client/api";
 import { ACTIVITY_LABEL, ACTIVITY_TYPES } from "@/lib/constants";
 
@@ -29,51 +30,84 @@ export function Practice() {
   }
 
   return (
-    <div className="wrap section stack">
-      <h1>Practice</h1>
-      <p>Activities are built only from meanings this session has verified. Practice here is solo: your own match stays with you, and the other person does not receive whether your answer matched. Guesses, facilitator-supported observations, and disputed meanings are left out. A miss is kept as evidence of ambiguity, with a clarification, rather than treated as a failed grade. Illustrative demo answers stay inside the sample session and are labeled there.</p>
+    <div className="wrap page-pad stack-lg">
+      <PageHeader
+        eyebrow="Solo recall & ambiguity check"
+        title="Practice"
+        description="Activities are built only from meanings this session has verified. Practice here is solo: your own match stays with you, and the other person does not receive whether your answer matched. A miss is kept as evidence of ambiguity, with a clarification, rather than treated as a failed grade."
+      />
+
       {repeatedMisses(responses).map((item) => (
-        <Notice key={item.conceptId}>The same concept has been missed {item.count} times. That pattern is a reason to reopen the meaning, not to mark the person wrong.</Notice>
+        <Notice key={item.conceptId} tone="warning">
+          The same concept has been missed {item.count} times. That pattern is a reason to reopen the meaning, not to mark the person wrong.
+        </Notice>
       ))}
-      <div className="row">
-        <button type="button" className="btn btn-primary" onClick={() => void generate()}>Practice from current vocabulary</button>
-        {ACTIVITY_TYPES.map((type) => (
-          <button key={type} type="button" className="btn" onClick={() => void generate(type)}>{ACTIVITY_LABEL[type]}</button>
-        ))}
-      </div>
-      {message ? <Notice>{message}</Notice> : null}
-      {state.activities.map((activity) => (
-        <article key={activity.id} className="list-card stack-sm">
-          <p className="small">{ACTIVITY_LABEL[activity.type] ?? activity.type}</p>
-          <p>{activity.prompt}</p>
-          <AnswerForm activityId={activity.id} options={activity.options} keyed={Boolean(activity.answerKey)} onDone={reload} />
-          {activity.responses.map((response) => (
-            <div key={response.id} className="stack-sm">
-              <p className="small">{response.participantName}: {response.correct === null ? "No automatic judgment" : response.correct ? "Matched the current entry" : "Did not match the current entry"}</p>
-              {response.clarification ? <p className="small">{response.clarification}</p> : null}
-            </div>
+
+      <div className="surface stack-sm">
+        <div className="row">
+          <button type="button" className="btn btn-primary" onClick={() => void generate()}>
+            Practice from current vocabulary
+          </button>
+          {ACTIVITY_TYPES.map((type) => (
+            <button key={type} type="button" className="btn btn-sm" onClick={() => void generate(type)}>
+              {ACTIVITY_LABEL[type]}
+            </button>
           ))}
-          {activity.conceptId ? <Link href={`/session/${code}/concept/${activity.conceptId}`}>Revise this concept</Link> : null}
-        </article>
-      ))}
-      <h2>Progress</h2>
-      {responses.length ? (
-        <table>
-          <thead>
-            <tr><th>When</th><th>Activity</th><th>Person</th><th>Record</th></tr>
-          </thead>
-          <tbody>
-            {responses.map((response) => (
-              <tr key={response.id}>
-                <td>{new Date(response.createdAt).toLocaleString()}</td>
-                <td>{ACTIVITY_LABEL[response.type] ?? response.type}</td>
-                <td>{response.participantName}</td>
-                <td>{response.correct === null ? "Unjudged" : response.correct ? "Matched" : "Clarification"}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      ) : <p>No practice answers yet.</p>}
+        </div>
+        {message ? <Notice>{message}</Notice> : null}
+      </div>
+
+      {state.activities.length === 0 ? (
+        <EmptyState
+          icon={PenLine}
+          title="No practice activities yet"
+          description="Generate solo activities from your session-verified vocabulary above."
+        />
+      ) : (
+        <div className="grid-2">
+          {state.activities.map((activity) => (
+            <article key={activity.id} className="list-card stack">
+              <div className="row-between">
+                <span className="status-pill">{ACTIVITY_LABEL[activity.type] ?? activity.type}</span>
+                {activity.conceptId ? <Link className="small" href={`/session/${code}/concept/${activity.conceptId}`}>Revise this concept</Link> : null}
+              </div>
+              <p style={{ fontWeight: 500 }}>{activity.prompt}</p>
+              <AnswerForm activityId={activity.id} options={activity.options} keyed={Boolean(activity.answerKey)} onDone={reload} />
+              {activity.responses.map((response) => (
+                <div key={response.id} className="surface-recessed stack-xs" style={{ padding: 10 }}>
+                  <p className="small" style={{ color: "var(--ink)" }}>
+                    <strong>{response.participantName}:</strong> {response.correct === null ? "No automatic judgment" : response.correct ? "Matched the current entry" : "Did not match the current entry"}
+                  </p>
+                  {response.clarification ? <p className="small muted">{response.clarification}</p> : null}
+                </div>
+              ))}
+            </article>
+          ))}
+        </div>
+      )}
+
+      <section className="stack">
+        <h2>Progress</h2>
+        {responses.length ? (
+          <div className="table-wrap">
+            <table>
+              <thead>
+                <tr><th>When</th><th>Activity</th><th>Person</th><th>Record</th></tr>
+              </thead>
+              <tbody>
+                {responses.map((response) => (
+                  <tr key={response.id}>
+                    <td className="mono small">{new Date(response.createdAt).toLocaleString()}</td>
+                    <td>{ACTIVITY_LABEL[response.type] ?? response.type}</td>
+                    <td>{response.participantName}</td>
+                    <td>{response.correct === null ? "Unjudged" : response.correct ? "Matched" : "Clarification"}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : <p className="small muted">No practice answers yet.</p>}
+      </section>
     </div>
   );
 }
@@ -109,9 +143,11 @@ function AnswerForm({
       }}
     >
       {keyed ? (
-        <div className="stack-sm" role="radiogroup" aria-label="Your choice">
+        <div className="stack-xs" role="radiogroup" aria-label="Your choice">
           {options.map((option) => (
-            <button key={option.id} type="button" className={selected === option.id ? "btn is-selected" : "btn"} aria-pressed={selected === option.id} onClick={() => setSelected(option.id)}>{option.label}</button>
+            <button key={option.id} type="button" className={selected === option.id ? "btn btn-sm is-selected" : "btn btn-sm"} style={{ justifyContent: "flex-start" }} aria-pressed={selected === option.id} onClick={() => setSelected(option.id)}>
+              {option.label}
+            </button>
           ))}
         </div>
       ) : (
@@ -121,12 +157,16 @@ function AnswerForm({
             ["unsure", "Unsure"],
             ["different", "It came out different"],
           ] as const).map(([value, label]) => (
-            <button key={value} type="button" className={assessment === value ? "btn is-selected" : "btn"} aria-pressed={assessment === value} onClick={() => setAssessment(value)}>{label}</button>
+            <button key={value} type="button" className={assessment === value ? "btn btn-sm is-selected" : "btn btn-sm"} aria-pressed={assessment === value} onClick={() => setAssessment(value)}>
+              {label}
+            </button>
           ))}
         </div>
       )}
       <Field label="Note"><input className="control" value={notes} onChange={(event) => setNotes(event.target.value)} /></Field>
-      <button className="btn" type="submit">Record answer</button>
+      <div>
+        <button className="btn btn-sm btn-primary" type="submit">Record answer</button>
+      </div>
       {clarification ? <Notice>{clarification}</Notice> : null}
     </form>
   );

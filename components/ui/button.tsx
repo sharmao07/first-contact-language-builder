@@ -5,17 +5,26 @@ const buttonStyles = cva("btn", {
   variants: {
     tone: {
       primary: "btn-primary",
+      accent: "btn-accent",
       quiet: "",
+      tonal: "btn-tonal",
+      ghost: "btn-ghost",
       danger: "btn-danger",
     },
+    size: {
+      sm: "btn-sm",
+      md: "",
+      lg: "btn-lg",
+    },
   },
-  defaultVariants: { tone: "quiet" },
+  defaultVariants: { tone: "quiet", size: "md" },
 });
 
 export function Button({
   tone,
+  size,
   className,
   ...props
 }: React.ButtonHTMLAttributes<HTMLButtonElement> & VariantProps<typeof buttonStyles>) {
-  return <button className={cn(buttonStyles({ tone }), className)} {...props} />;
+  return <button className={cn(buttonStyles({ tone, size }), className)} {...props} />;
 }
