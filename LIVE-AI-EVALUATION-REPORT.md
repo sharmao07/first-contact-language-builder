@@ -2,6 +2,8 @@
 
 **Production AI Status:** Default Production (`https://first-contact-language-builder.vercel.app`) remains intentionally set to **`AI_PROVIDER=demo`**.
 
+On 27 November 2026, `GET /api/health` still reported `ai.mode` as `demo`. In a production browser session the same day, `POST /api/sessions/WIND-5250/analyze` returned HTTP 200 with `simulated: true`. That was the demo hypothesis engine, not a live model call. The controlled results below remain a local mock-server contract test.
+
 **Hosted Vercel Preview Status (External Model Call):** **Blocked / Not Configured.** Neither a server-side `OPENAI_API_KEY` (nor Gemini/Anthropic/OpenRouter key) nor a separate Preview Supabase project exists in `.env`, shell environment, or Vercel (`vercel env ls` confirms Production-only variables and zero Preview deployments). Per safety and environment rules, Preview must not reuse the Production Supabase database, no credentials were invented, and **no live external OpenAI/LLM API call has been executed**.
 
 Instead, the real production TypeScript AI modules ([openAIProvider.analyze](lib/ai/openai-provider.ts) and [requestLivePlan](lib/ai/plan.ts)) were exercised end-to-end over TCP HTTP against a controlled local OpenAI-compatible HTTP server (`127.0.0.1`) via [scripts/evaluate-ai-provider.mjs](scripts/evaluate-ai-provider.mjs).

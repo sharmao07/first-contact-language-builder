@@ -2,6 +2,8 @@
 
 **Status:** **Partial.** The Phase 2 notes, screenshots, and scripts were committed on `main` as `58b1b14`. Local checks and the controlled AI contract test were recorded as passing. The live workflow on `https://first-contact-language-builder.vercel.app` did not finish `10c`, `10d`, or `10e`. `docs/screenshots/06-vocabulary-verified.png` is still the earlier `BROOK-1509` frame: three entries labeled accepted, not session-verified. Interrupted hosted sessions were not deleted.
 
+Production on 27 November 2026 is still commit `58b1b14`, deployment `dpl_7VqmLivoupFN3bwTJHm6U7wkTT4t`. A later two-browser pass is recorded in `FINAL-JUDGING-READINESS-REPORT.md`. It does not replace the unfinished `10c`–`10e` results below.
+
 ---
 
 ## 1. Part 1 — Phase 1 Checkpoint & Local Integrity

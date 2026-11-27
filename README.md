@@ -10,7 +10,7 @@ An AI suggestion stays a guess until a facilitator or host accepts it. Acceptanc
 
 - Guest seats. A person creates a session, shares a code such as `TREE-4821`, and the other person joins as participant A or B. A recovery key lets someone rejoin the same seat.
 - Shared session state. Both browsers poll the same session and see new evidence, hypotheses, and checks.
-- Evidence. Camera capture, image upload, a drawing canvas, microphone recording, gesture descriptions, live demonstrations, short video uploads, and written notes. Files stay in `data/uploads` and are served only to a seat in that session.
+- Evidence. Camera capture, image upload, a drawing canvas, microphone recording, gesture descriptions, live demonstrations, short video uploads, and written notes. Local files stay in `data/uploads`. Production files stay in a private storage bucket. Either way, a file is served only to a seat in that session.
 - Hypotheses. A demo facilitator, or an optional OpenAI-compatible model, proposes several readings, ambiguities, and a follow-up check. Participants can accept, reject, or challenge. Nothing is auto-verified.
 - Verification. Visual discrimination, context testing, reverse demonstration, contrast testing, and repeated checks. The status rule is shown in the workspace.
 - Vocabulary. Search, filter, edit, archive, dispute, and reopen entries. Each card keeps its evidence and status reason.
@@ -27,7 +27,7 @@ An AI suggestion stays a guess until a facilitator or host accepts it. Acceptanc
 - Tailwind CSS
 - A small shadcn-style button (`class-variance-authority`, `clsx`, `tailwind-merge`)
 - Lucide icons and Framer Motion
-- Prisma ORM and SQLite
+- Prisma ORM, with SQLite for local development and PostgreSQL in production
 - Zod
 - `d3-force` for the relationship layout
 

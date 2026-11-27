@@ -2,6 +2,8 @@
 
 **Live Deployment:** `https://first-contact-language-builder.vercel.app` (Demo Mode active; zero unconsented external model calls)
 
+The 2–4 minute flow below is the judge script. A 27 November 2026 production browser pass confirmed the landing disclosure, community creation, an independent join, evidence from both seats, and hypothesis isolation. It did not finish the blinded lock step: the community page navigation timed out. That lock/reveal behavior is the earlier Phase 2 capture, not a result from this pass. Details are in `FINAL-JUDGING-READINESS-REPORT.md`.
+
 ---
 
 ## 1. Problem & Solution
