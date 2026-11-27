@@ -12,6 +12,10 @@ export function seesResearchPlan(purpose: string, viewer: { communityRole: strin
   return viewer?.communityRole === "facilitator";
 }
 
+export function visibleOpenHypothesisCount(purpose: string, viewer: { communityRole: string } | null, count: number) {
+  return seesResearchPlan(purpose, viewer) ? count : 0;
+}
+
 export function presentReplies(replies: StoredReply[], viewerId: string | null) {
   const locked = new Set(replies.filter((item) => item.lockedAt).map((item) => item.participantId));
   const open = locked.size >= 2;

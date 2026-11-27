@@ -2,8 +2,9 @@ import path from "path";
 import { getAIPublicStatus } from "@/lib/ai/config";
 import { getProvider } from "@/lib/ai";
 import { prisma } from "@/lib/database/prisma";
-import { canMutateHypotheses } from "@/lib/access/policy";
+import { canDeleteEvidence, canMutateHypotheses } from "@/lib/access/policy";
 import { conceptInSession, recordEvent, refreshConceptStatus, requireParticipant, summaryFor } from "@/lib/domain/common";
+import { seesResearchPlan } from "@/lib/experiments/privacy";
 import { HttpError } from "@/lib/http";
 import { limitBytes } from "@/lib/constants";
 import { nextConceptCode } from "@/lib/session/codes";
@@ -128,6 +129,13 @@ export async function deleteEvidence(code: string, token: string | null, evidenc
   const { session, participant } = await requireParticipant(code, token);
   const evidence = await prisma.evidence.findFirst({ where: { id: evidenceId, sessionId: session.id } });
   if (!evidence || (evidence.deletedAt && !evidence.storagePath)) throw new HttpError(404, "That evidence is not in this session.");
+  if (!canDeleteEvidence(
+    { purpose: session.purpose, role: participant.role, communityRole: participant.communityRole },
+    evidence.participantId,
+    participant.id,
+  )) {
+    throw new HttpError(403, "You can delete your own evidence. The other person's record stays.");
+  }
   await prisma.evidence.update({
     where: { id: evidence.id },
     data: { deletedAt: evidence.deletedAt ?? new Date() },
@@ -150,6 +158,9 @@ export async function deleteEvidence(code: string, token: string | null, evidenc
 
 export async function analyzeEvidence(code: string, token: string | null, evidenceId: string) {
   const { session, participant } = await requireParticipant(code, token);
+  if (!seesResearchPlan(session.purpose, participant)) {
+    throw new HttpError(403, "In a community session, the facilitator requests readings. That does not decide the meaning.");
+  }
   const evidence = await prisma.evidence.findFirst({ where: { id: evidenceId, sessionId: session.id, deletedAt: null } });
   if (!evidence) throw new HttpError(404, "That evidence is not in this session.");
   const concepts = await prisma.concept.findMany({ where: { sessionId: session.id, archivedAt: null } });

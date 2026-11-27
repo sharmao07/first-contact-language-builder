@@ -10,7 +10,8 @@ import { CopyCodeButton, EmptyState, Field, Notice, StatusText } from "@/compone
 import { EvidenceImage } from "@/components/ui/media";
 import { MotionSwap } from "@/components/ui/motion";
 import { api, ApiError } from "@/lib/client/api";
-import { canMutateHypotheses } from "@/lib/access/policy";
+import { canDeleteEvidence, canMutateHypotheses } from "@/lib/access/policy";
+import { seesResearchPlan } from "@/lib/experiments/privacy";
 import { CATEGORIES, CATEGORY_LABEL, displayStatus, EXPERIMENT_LABEL, EXPERIMENT_TYPES } from "@/lib/constants";
 import { METHODOLOGY } from "@/lib/verification/methodology";
 import type { EvidenceDTO, HypothesisDTO } from "@/lib/types";
@@ -70,7 +71,18 @@ export function Workspace() {
                 {tab === "evidence" ? (
                   <div className="stack-lg">
                     <Composer code={code} token={identity.token} concepts={state.concepts} purpose={state.session.purpose} onDone={reload} />
-                    <EvidenceList evidence={state.evidence} code={code} token={identity.token} onDone={reload} />
+                    <EvidenceList
+                      evidence={state.evidence}
+                      code={code}
+                      token={identity.token}
+                      onDone={reload}
+                      canRequestHypotheses={seesResearchPlan(state.session.purpose, state.viewer)}
+                      canDelete={(authorParticipantId) => canDeleteEvidence(
+                        { purpose: state.session.purpose, role: state.viewer?.role ?? identity.role, communityRole: state.viewer?.communityRole ?? "" },
+                        authorParticipantId,
+                        state.viewer?.id ?? identity.participantId,
+                      )}
+                    />
                   </div>
                 ) : null}
                 {tab === "hypotheses" ? <HypothesisBoard onDone={reload} onOpenConcept={setConceptId} /> : null}
@@ -263,7 +275,21 @@ function DeleteSession() {
   );
 }
 
-function EvidenceList({ evidence, code, token, onDone }: { evidence: EvidenceDTO[]; code: string; token: string; onDone: () => void }) {
+function EvidenceList({
+  evidence,
+  code,
+  token,
+  onDone,
+  canRequestHypotheses,
+  canDelete,
+}: {
+  evidence: EvidenceDTO[];
+  code: string;
+  token: string;
+  onDone: () => void;
+  canRequestHypotheses: boolean;
+  canDelete: (authorParticipantId: string) => boolean;
+}) {
   if (!evidence.length) {
     return (
       <EmptyState
@@ -307,30 +333,36 @@ function EvidenceList({ evidence, code, token, onDone }: { evidence: EvidenceDTO
           {item.mediaUrl && item.mimeType?.startsWith("audio/") ? <audio controls src={item.mediaUrl} style={{ width: "100%" }} /> : null}
           {item.qualityNote ? <p className="small muted">{item.qualityNote}</p> : null}
 
-          <div className="row" style={{ borderTop: "1px solid var(--line)", paddingTop: 12 }}>
-            <button
-              type="button"
-              className="btn btn-sm"
-              onClick={async () => {
-                await api(`/api/sessions/${code}/analyze`, { token, body: { evidenceId: item.id } });
-                onDone();
-              }}
-            >
-              <Sparkles size={14} strokeWidth={1.5} aria-hidden="true" />
-              Request hypotheses
-            </button>
-            <button
-              type="button"
-              className="btn btn-sm btn-danger"
-              onClick={async () => {
-                await api(`/api/sessions/${code}/evidence/${item.id}`, { method: "DELETE", token, body: {} });
-                onDone();
-              }}
-            >
-              <Trash2 size={14} strokeWidth={1.5} aria-hidden="true" />
-              Delete
-            </button>
-          </div>
+          {canRequestHypotheses || canDelete(item.participantId) ? (
+            <div className="row" style={{ borderTop: "1px solid var(--line)", paddingTop: 12 }}>
+              {canRequestHypotheses ? (
+                <button
+                  type="button"
+                  className="btn btn-sm"
+                  onClick={async () => {
+                    await api(`/api/sessions/${code}/analyze`, { token, body: { evidenceId: item.id } });
+                    onDone();
+                  }}
+                >
+                  <Sparkles size={14} strokeWidth={1.5} aria-hidden="true" />
+                  Request hypotheses
+                </button>
+              ) : null}
+              {canDelete(item.participantId) ? (
+                <button
+                  type="button"
+                  className="btn btn-sm btn-danger"
+                  onClick={async () => {
+                    await api(`/api/sessions/${code}/evidence/${item.id}`, { method: "DELETE", token, body: {} });
+                    onDone();
+                  }}
+                >
+                  <Trash2 size={14} strokeWidth={1.5} aria-hidden="true" />
+                  Delete
+                </button>
+              ) : null}
+            </div>
+          ) : null}
         </article>
       ))}
     </div>

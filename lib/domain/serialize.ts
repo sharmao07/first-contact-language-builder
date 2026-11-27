@@ -4,7 +4,7 @@ import { prisma } from "@/lib/database/prisma";
 import { OPAQUE_SESSION } from "@/lib/access/credentials";
 import { canMutateHypotheses } from "@/lib/access/policy";
 import { requireParticipant } from "@/lib/domain/common";
-import { hideEventPayload, presentReplies, redactPrivateEvent, seesResearchPlan } from "@/lib/experiments/privacy";
+import { hideEventPayload, presentReplies, redactPrivateEvent, seesResearchPlan, visibleOpenHypothesisCount } from "@/lib/experiments/privacy";
 import { parseReplies, storedRecommendation } from "@/lib/domain/plans";
 import { signMediaPath } from "@/lib/media/sign";
 import { syncTransport } from "@/lib/sync/transport";
@@ -341,7 +341,7 @@ function serialize(session: FullSession, viewer: Participant | null): SessionSta
       disputed: activeConcepts.filter((concept) => concept.status === "disputed").length,
       tentative: activeConcepts.filter((concept) => concept.status === "tentative").length,
       evidence: session.evidence.length,
-      openHypotheses: session.hypotheses.filter((hypothesis) => hypothesis.status === "open").length,
+      openHypotheses: visibleOpenHypothesisCount(session.purpose, viewer, session.hypotheses.filter((hypothesis) => hypothesis.status === "open").length),
     },
   };
 }

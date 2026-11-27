@@ -2,7 +2,7 @@ import { afterEach, describe, expect, it } from "vitest";
 import { requestLivePlan } from "@/lib/ai/plan";
 import { SIMULATED_PLAN_NOTE } from "@/lib/experiments/schema";
 import { buildRulePlan, reviewRecordedOutcome } from "@/lib/experiments/select";
-import { presentReplies, seesResearchPlan } from "@/lib/experiments/privacy";
+import { presentReplies, seesResearchPlan, visibleOpenHypothesisCount } from "@/lib/experiments/privacy";
 import { buildTimeline } from "@/lib/experiments/timeline";
 import type { EngineSnapshot } from "@/lib/experiments/state";
 import { stimulusIdentity } from "@/lib/verification/experiments";
@@ -118,6 +118,8 @@ describe("plan privacy", () => {
     expect(seesResearchPlan("community", { communityRole: "participant" })).toBe(false);
     expect(seesResearchPlan("community", { communityRole: "facilitator" })).toBe(true);
     expect(seesResearchPlan("research", { communityRole: "" })).toBe(true);
+    expect(visibleOpenHypothesisCount("community", { communityRole: "participant" }, 4)).toBe(0);
+    expect(visibleOpenHypothesisCount("community", { communityRole: "facilitator" }, 4)).toBe(4);
   });
 });
 

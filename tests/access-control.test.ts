@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ACCESS_NOTES, accessRole, canExportSession, canReadSession } from "@/lib/access/policy";
+import { ACCESS_NOTES, accessRole, canDeleteEvidence, canExportSession, canReadSession } from "@/lib/access/policy";
 import { BENCHMARK } from "@/lib/experiments/benchmark";
 import { DRAFT_LIMIT } from "@/lib/experiments/outcomes";
 import { buildRulePlan } from "@/lib/experiments/select";
@@ -14,6 +14,10 @@ describe("access roles", () => {
     expect(canExportSession(accessRole({ purpose: "community", role: "A", communityRole: "facilitator" }))).toBe(true);
     expect(canExportSession(accessRole({ purpose: "research", role: "A", communityRole: "" }))).toBe(true);
     expect(ACCESS_NOTES.researchAdministrator).toContain("No research-administrator");
+    const participant = { purpose: "community", role: "B", communityRole: "participant" };
+    expect(canDeleteEvidence(participant, "seat-a", "seat-b")).toBe(false);
+    expect(canDeleteEvidence(participant, "seat-b", "seat-b")).toBe(true);
+    expect(canDeleteEvidence({ purpose: "community", role: "A", communityRole: "facilitator" }, "seat-b", "seat-a")).toBe(true);
   });
 });
 

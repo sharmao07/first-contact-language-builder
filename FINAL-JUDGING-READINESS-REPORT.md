@@ -20,7 +20,9 @@ The earlier `POST /api/sessions` HTTP 400 was the browser test submitting before
 
 ## 2. Bugs fixed
 
-No application code was changed. The test interaction was corrected for the production browser pass: wait until the controls are hydrated, fill **Your name**, check the shared-discovery confirmation, and read the values back before submit. That request then returned HTTP 201.
+The earlier HTTP 400 was a test submitting before the form kept its values. Validation was not changed.
+
+A later code fix stops a community participant from seeing the hidden-hypothesis count, requesting readings, or deleting the other person's evidence. The facilitator still sees the count, can request readings, and can delete evidence. Each person can still delete their own evidence.
 
 ## 3. Files changed
 

@@ -27,6 +27,10 @@ export function canMutateHypotheses(seat: Seat) {
   return role === "facilitator" || role === "host";
 }
 
+export function canDeleteEvidence(seat: Seat, authorParticipantId: string, viewerParticipantId: string) {
+  return authorParticipantId === viewerParticipantId || canMutateHypotheses(seat);
+}
+
 export const ACCESS_NOTES = {
   visitor: "No session list, no session record, and no export. A code is only used to join.",
   participant: "Reads the participant view of one session. Cannot export facilitator notes, hypotheses, or private evidence descriptions.",
