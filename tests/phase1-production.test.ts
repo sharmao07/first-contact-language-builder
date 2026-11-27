@@ -219,8 +219,24 @@ describe("production readiness, migrations, and secrets", () => {
     expect(rlSql.toLowerCase()).not.toContain("delete ");
     expect(rlSql.toLowerCase()).not.toContain("truncate ");
     await db.exec(rlSql);
-    const tables = await db.query(`SELECT tablename FROM pg_tables WHERE schemaname = 'public' AND tablename = 'RateLimitBucket'`);
-    expect(tables.rows).toHaveLength(1);
+    const rlsSql = fs.readFileSync("prisma/migrations/20261127195500_harden_rls_and_privileges/migration.sql", "utf8");
+    expect(rlsSql.toLowerCase()).not.toContain("drop ");
+    expect(rlsSql.toLowerCase()).not.toContain("delete ");
+    expect(rlsSql.toLowerCase()).not.toContain("truncate ");
+    await db.exec(rlsSql);
+    const fnSql = fs.readFileSync(
+      "prisma/migrations/20261127200000_revoke_global_function_default_execute/migration.sql",
+      "utf8",
+    );
+    expect(fnSql.toLowerCase()).not.toContain("drop ");
+    expect(fnSql.toLowerCase()).not.toContain("delete ");
+    expect(fnSql.toLowerCase()).not.toContain("truncate ");
+    await db.exec(fnSql);
+    const tables = await db.query<{ tablename: string; rowsecurity: boolean }>(
+      `SELECT tablename, rowsecurity FROM pg_tables WHERE schemaname = 'public' ORDER BY tablename`,
+    );
+    expect(tables.rows).toHaveLength(20);
+    expect(tables.rows.every((row) => row.rowsecurity === true)).toBe(true);
     await db.close();
   });
 

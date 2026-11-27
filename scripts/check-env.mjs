@@ -14,6 +14,8 @@ const SECRET_KEY_PATTERNS = [
 export const REQUIRED_POSTGRES_MIGRATIONS = [
   "prisma/migrations/20261124220325_init/migration.sql",
   "prisma/migrations/20261126213500_add_rate_limit_buckets/migration.sql",
+  "prisma/migrations/20261127195500_harden_rls_and_privileges/migration.sql",
+  "prisma/migrations/20261127200000_revoke_global_function_default_execute/migration.sql",
 ];
 
 export function verifyMigrationsReady(root = ".") {
