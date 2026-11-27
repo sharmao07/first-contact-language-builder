@@ -1,128 +1,96 @@
 # Phase 1 — Hosted Infrastructure Report
 
-**Status:** Discovery, private bucket verification, and 6 of 9 Vercel Production environment variables (including a newly generated `MEDIA_SIGNING_SECRET`) are **complete**. **Live PostgreSQL migrations, the remaining 3 Supabase secret environment variables, Phase 1 Vercel deployment, and live end-to-end production verification are blocked** pending `DATABASE_URL`, `DIRECT_URL`, and `SUPABASE_SERVICE_ROLE_KEY` from the Supabase Dashboard.
+**Status:** **Complete & Verified Live.** Supabase PostgreSQL (`mogsdvdgfwpsssvcjjoc`), private Supabase Storage (`session-media`), server-side HMAC media signing, all 9 Vercel Production environment variables, Prisma migrations, Phase 1 Vercel deployment (`478d527`), and all 13 live production verification checks passed against `https://first-contact-language-builder.vercel.app`.
+
+> **Important Security Action Recommended Before Opening Public Access:** Supabase `list_tables` reports `rls_disabled` across all `21` tables in `public` (`_prisma_migrations` + the 20 Prisma tables). Although this application connects server-side as `postgres` (`rolbypassrls: true`) and never exposes `anon` keys in client bundles, leaving `public` schema tables with RLS disabled makes them reachable via Supabase's Data API (`PostgREST`) to anyone holding your project's public `anon` / publishable key. See **Section 5 (Remaining Security Risks & Recommended SQL)** for the exact remediation SQL.
 
 ---
 
-## 1. Status Matrix (Parts 1–7)
+## 1. Status Summary (Every Requirement)
 
-| Task | Status | Notes |
+| Check / Task | Outcome | Evidence |
 | --- | --- | --- |
-| **Part 1 — Supabase Discovery** | **Completed & Verified** | Inspected org, project, Postgres version, tables, migrations, storage bucket, and RLS policies via `supabase_mcp`. |
-| **Part 2 — PostgreSQL Migrations** | **Blocked (Missing Credentials)** | Schema parity & migrations verified cleanly on local SQLite + embedded PGlite; live Supabase DB migration requires `DATABASE_URL` and `DIRECT_URL` (DB password is not exposed by `supabase_mcp`). |
-| **Part 3 — Private Supabase Storage** | **Bucket Verified / E2E Blocked** | `session-media` exists with `public: false`, `rls_enabled: true`, `0` objects, and `0` permissive public/anon policies; live upload/download verification requires `SUPABASE_SERVICE_ROLE_KEY`. |
-| **Part 4 — Secrets & Env Prep** | **Partially Completed** | Generated `MEDIA_SIGNING_SECRET` (`openssl rand -hex 32`) directly into Vercel Production without logging; `STORAGE_PROVIDER`, `SUPABASE_URL`, `SUPABASE_STORAGE_BUCKET`, `RATE_LIMIT_STORE`, and `AI_PROVIDER` set on Vercel Production. Remaining 3 secrets require Supabase Dashboard copy. |
-| **Part 5 — Vercel Configuration** | **Partially Completed** | Authenticated Vercel CLI (`ojussharma07-4877`, team `sharm-07`, project `first-contact-language-builder`); 6 env vars configured in Production. Deployment held because DB migration & 3 secrets are pending. |
-| **Part 6 — Real Production Verification** | **Baseline Checked / Blocked** | Current pre-Phase-1 deploy checked (`GET /api/health` → **HTTP 503**). Remaining 12 live checks await DB migration, secrets, and Phase 1 deployment. |
+| **Supabase Discovery & Bucket** | **Passed** | Org `sharmao07's Org` (`lzpvmfofigehzavohwbs`, free), project `first-contact-production` (`mogsdvdgfwpsssvcjjoc`, `ap-southeast-2`, Postgres `17.12.0.002`, `ACTIVE_HEALTHY`), private bucket `session-media` (`public: false`, `rls_enabled: true`). |
+| **Production Environment Variables** | **Passed** | All 9 required secrets/vars set in Vercel Production (`sharm-07/first-contact-language-builder`): `DATABASE_URL`, `DIRECT_URL`, `STORAGE_PROVIDER`, `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SUPABASE_STORAGE_BUCKET`, `MEDIA_SIGNING_SECRET`, `RATE_LIMIT_STORE`, `AI_PROVIDER` (`demo`). |
+| **PostgreSQL Migrations (`npm run db:migrate`)** | **Passed** | Applied `20261124220325_init` and `20261126213500_add_rate_limit_buckets` cleanly via Session Pooler (`:5432`); `prisma migrate status` reports `Database schema is up to date!`; 21 tables (incl. `DiscoverySession`, `AccessCredential`, `RateLimitBucket`, `_prisma_migrations`) and 63 indexes in `public`; never ran `db:seed`. |
+| **Vercel Production Deploy** | **Passed** | Commit `478d527` (`478d5275214ea4f129a0efba2a2d3b3e5fda5eab`) deployed to `dpl_B7C6kWeBxkZ2s5QCSpzhF6T5vRsU` (`https://first-contact-language-builder-4w1py372e-sharm-07.vercel.app`) and aliased to `https://first-contact-language-builder.vercel.app`. |
+| **Check 1 — `/api/health`** | **Passed** | `HTTP/2 200` — `ok: true`, `environment: "production"`, `database.provider: "postgresql"`, `database.migrated: true`, `storage.provider: "supabase"`, `storage.available: true`, `media.configured: true`, `rateLimit.provider: "database"`, `rateLimit.available: true`. |
+| **Check 2 — Legacy Sample Credential & `SHORE-1001` Rejection** | **Passed** | `demo-shore-1001-participant-a` → **401**, `demo-shore-1001-participant-b` → **401**, `GET /api/sessions/SHORE-1001` → **404**, `POST /api/demo/reset` → **403**. |
+| **Check 2b — Client HTML Secret Exposure** | **Passed** | `GET /start` → **200**, zero `service_role`, DB password, or signing secret leakage in rendered HTML; codebase search confirms zero client-side `supabase-js` or `NEXT_PUBLIC_*` Supabase credentials. |
+| **Check 3 — Session Creation (Browser 1)** | **Passed** | Real headless Chrome (`Playwright`) on `/start` created throwaway session `WIND-7771` with 48-char seat token (`token_len=48`). |
+| **Check 4 — Independent Join (Browser 2)** | **Passed** | Second isolated Playwright context joined `WIND-7771` seat `B` cleanly and rendered `/session/WIND-7771/community` (`seatB_visible=true`). |
+| **Check 5 — Participant Draft Isolation** | **Passed** | Unlocked draft saved by Seat A stayed hidden from Seat B across browser UI reload and API state (`draftSaved=true`, `ui_leaked=false`, `api_leaked=false`). |
+| **Check 6 — Evidence Upload & Signed Retrieval** | **Passed** | Uploaded PNG (`POST /api/sessions/WIND-7771/evidence` → **201**) to private Supabase Storage and fetched signed URL (`/api/media/<id>?exp=...&sig=...` → **200**, exact 68 bytes). |
+| **Check 7 — Private Storage Rejection** | **Passed** | Direct unauthenticated request to Supabase public object URL (`storage/v1/object/public/session-media/...`) rejected (**HTTP 400**). |
+| **Check 8 — Media Proxy Signing & Expiry** | **Passed** | Unsigned `/api/media/<id>` without token → **404**; tampered `sig` → **404**; expired `exp=1000` → **404**; valid HMAC signed URL → **200**. |
+| **Check 9 — Cross-Session Access Denial** | **Passed** | Second throwaway session `BIRD-4039` (**201**) rejected when reading `WIND-7771` session (**404**), unsigned media (**404**), or tampered-sig media (**404**). |
+| **Check 10 — Recovery Rotation & Revocation** | **Passed** | `POST /api/sessions/rejoin` (**200**) rotated Seat B's token; prior token failed (**401**), new token succeeded (**200**). |
+| **Check 11 — Distributed Rate Limit (`429`)** | **Passed** | Repeated `POST /api/sessions/rejoin` requests enforced PostgreSQL-backed limit (`HTTP 429` within 19 requests, `X-RateLimit-Limit: 20`, `X-RateLimit-Remaining: 0`, `Retry-After: 796`). |
+| **Check 12 — Throwaway Cleanup & Local Integrity** | **Passed** | Both throwaway sessions deleted (`WIND-7771`: `200`/`404` after; `BIRD-4039`: `200`/`404` after); `storage.objects` = `0` rows; local SQLite `SHORE-1001` untouched (`concepts: 8`, `evidence: 8`, `hypotheses: 11`, `participants: 2`). |
 
 ---
 
-## 2. Part 1 — Supabase Discovery Results
+## 2. Hosted Infrastructure & Deployment Details
 
-- **Organization**: `sharmao07's Org` (`lzpvmfofigehzavohwbs`, plan `free`)
-- **Project**: `first-contact-production` (`mogsdvdgfwpsssvcjjoc`)
-  - **Region**: `ap-southeast-2`
-  - **Status**: `ACTIVE_HEALTHY`
-  - **Database Engine**: PostgreSQL `17.12.0.002` (`db.mogsdvdgfwpsssvcjjoc.supabase.co`)
-  - **Project API URL**: `https://mogsdvdgfwpsssvcjjoc.supabase.co`
-- **Database State**:
-  - `public` schema: **empty (`0` tables)**
-  - Applied Supabase migrations: **none (`0` migrations)**
-  - Security advisors (`get_advisors` type `security`): **clean (`lints: []`)**
-- **Storage State**:
-  - Bucket `session-media`: **exists**, **`public: false`** (private)
-  - `storage.objects`: `0` rows, `rls_enabled: true`, `0` policies in `pg_policies` for `storage` or `public` (blocks direct `anon` / `authenticated` access; matches server-only `SUPABASE_SERVICE_ROLE_KEY` calls in `lib/storage/supabase.ts`).
-- **Missing Permissions / Credentials (MCP Constraint)**:
-  - `supabase_mcp` intentionally omits the database password (`DATABASE_URL` / `DIRECT_URL`) and the `service_role` key (`SUPABASE_SERVICE_ROLE_KEY`). Only `get_publishable_keys` (anon/publishable keys) is exposed by MCP.
-
----
-
-## 3. Part 2 & 3 — Database, Migrations & Storage Verification
-
-- **Schema & Migration Readiness** (verified locally, not yet applied to `mogsdvdgfwpsssvcjjoc`):
-  - `prisma/migrations/20261124220325_init/migration.sql` (20 tables including `DiscoverySession`, `AccessCredential`, `Participant`, `Evidence`, `Concept`, etc., plus all foreign keys and indexes)
-  - `prisma/migrations/20261126213500_add_rate_limit_buckets/migration.sql` (`RateLimitBucket` table + `RateLimitBucket_expiresAt_idx`)
-  - Both are create-only, non-destructive, and match `prisma/schema.postgresql.prisma`.
-  - **Reason not applied via `supabase_mcp` `apply_migration`**: `scripts/migrate-postgres.mjs` (`npm run db:migrate`) invokes `prisma migrate deploy`, which requires `_prisma_migrations` metadata created cleanly using `DIRECT_URL` + `DATABASE_URL` rather than `supabase_migrations.schema_migrations` alone.
-- **Storage Implementation Match** (`lib/storage/supabase.ts`):
-  - Confirmed exact variable name: `SUPABASE_STORAGE_BUCKET` (defaults to `"session-media"`).
-  - Uploads (`POST /storage/v1/object/<bucket>/<path>`), server-proxied reads (`GET /storage/v1/object/authenticated/<bucket>/<path>`), and session-scoped deletes (`DELETE`) authenticate exclusively with `SUPABASE_SERVICE_ROLE_KEY` on the server.
-  - Because `storage.objects` has `rls_enabled = true` and zero policies for `anon`/`authenticated`, no client-side direct bucket access is permitted, and no broad public policies exist.
-- **Local SQLite & `SHORE-1001` Protection**:
-  - Untouched (`npm run env:check` passed; `data/first-contact.db` still active for local development).
-
----
-
-## 4. Part 4 & 5 — Vercel Project & Environment State
-
+- **Supabase Organization**: `sharmao07's Org` (`lzpvmfofigehzavohwbs`, `free`)
+- **Supabase Project**: `first-contact-production` (`mogsdvdgfwpsssvcjjoc`, `ap-southeast-2`, PostgreSQL `17.12.0.002`, API URL `https://mogsdvdgfwpsssvcjjoc.supabase.co`)
+- **Private Storage Bucket**: `session-media` (`public: false`, `rls_enabled: true`, `0` permissive `anon`/`authenticated` policies; server-side access via `SUPABASE_SERVICE_ROLE_KEY` in `lib/storage/supabase.ts`)
+- **Database Connection Tuning Fix Applied During Verification**:
+  - Live testing on commit `924c914` uncovered Prisma pool exhaustion (`Timed out fetching a new connection from the connection pool (Current connection pool timeout: 10, connection limit: 1)`) due to concurrent `requireParticipant` / `loadSessionState` queries over Vercel (`iad1`) ↔ Supabase PgBouncer (`ap-southeast-2`).
+  - Updated `lib/database/prisma.ts` to retain the singleton `PrismaClient` in `globalThis` across production lambda chunks, updated `scripts/check-env.mjs` to accept `connection_limit` `1`–`20` alongside `pgbouncer=true`, updated Vercel `DATABASE_URL` to `?pgbouncer=true&connection_limit=5&pool_timeout=25`, and updated `DIRECT_URL` to Supabase's IPv4 Session Pooler (`:5432`, without `pgbouncer=true`) because direct `db.<ref>.supabase.co:5432` is IPv6-only by default.
+  - Verified unit/typecheck/lint suites (`11` test files, `90` tests passed; `tsc --noEmit` 0 errors; `eslint .` 0 errors) prior to deploying commit `478d527`.
 - **Vercel Project**: `sharm-07/first-contact-language-builder`
-- **Production URL**: `https://first-contact-language-builder.vercel.app`
-- **Currently Active Deployment**: `dpl_AJktJ3sVFGdcsfVEbLgKv3d8PzWj` (`first-contact-language-builder-l7hukds3r-sharm-07.vercel.app`, built from pre-Phase-1 commit `57c2e7d` at `2026-11-26 21:20:38 GMT+0530`). Phase 1 local changes are uncommitted and intentionally **not deployed yet** until database migrations succeed.
-- **Pre-existing Vercel Env Vars**: `0` (`No Environment Variables found`).
-- **Configured Now in Vercel `Production` (Hidden Secrets, Values Not Printed)**:
-  - `STORAGE_PROVIDER` (`supabase`)
-  - `SUPABASE_URL` (`https://mogsdvdgfwpsssvcjjoc.supabase.co`)
-  - `SUPABASE_STORAGE_BUCKET` (`session-media`)
-  - `RATE_LIMIT_STORE` (`auto`)
-  - `AI_PROVIDER` (`demo`)
-  - `MEDIA_SIGNING_SECRET` (generated locally with `openssl rand -hex 32` directly via stdin)
-- **Still Missing in Vercel `Production`**:
-  - `DATABASE_URL`
-  - `DIRECT_URL`
-  - `SUPABASE_SERVICE_ROLE_KEY`
+- **Production Alias URL**: `https://first-contact-language-builder.vercel.app`
+- **Deployed Production URL / ID**: `https://first-contact-language-builder-4w1py372e-sharm-07.vercel.app` (`dpl_B7C6kWeBxkZ2s5QCSpzhF6T5vRsU`, commit `478d527`)
 
 ---
 
-## 5. Part 6 — Actual HTTP & Test Results Observed
+## 3. Supabase Security Review & Advisor Findings
 
-### Live Production Baseline Check (Before Env Complete / Before Phase 1 Deploy)
-- `GET https://first-contact-language-builder.vercel.app/api/health` → **HTTP 503**
-  ```json
-  {"ok":false,"mode":"demo","application":{"ready":false},"environment":"production","database":{"connected":false,"provider":"unknown"},"storage":{"provider":"local","configured":false,"available":false,"persistent":false,"detail":"A production deployment cannot keep uploads on local disk. Set STORAGE_PROVIDER=supabase."},"media":{"configured":false,"detail":"Set MEDIA_SIGNING_SECRET to at least 16 characters."},"sync":{"transport":"poll"},"ai":{"mode":"demo","configured":true,"available":true,"detail":"Demo mode uses the local hypothesis engine. It does not call an external model."}}
-  ```
-
-### Local Verification (Previously Run on Phase 1 Code; No Code Edited Since)
-- `npm run env:check` (after Vercel link & env setup): **passed** (`development environment and migrations are valid.`).
-- Phase 1 test suite & local server checks (already recorded in `PHASE-1-PRODUCTION-READINESS-REPORT.md`): `npx vitest run` (11 files, 90 tests passed), `typecheck`, `lint` (0 errors), `build`, and all 8 journey/browser scripts passed locally on SQLite.
-
-### Hosted Checks Still Pending Credentials & Deploy
-- PostgreSQL migration against `mogsdvdgfwpsssvcjjoc`
-- Live `/api/health` HTTP 200 verification
-- Live PostgreSQL + private Supabase Storage + signed media proxy + PostgreSQL `RateLimitBucket` HTTP 429 + session create/2nd-browser join/upload/cross-session auth denial + legacy sample token rejection against `https://first-contact-language-builder.vercel.app`
+- `get_advisors` (`type: "security"`): returned `lints: []`.
+- `list_tables` (`schemas: ["public", "storage"]`):
+  - `storage.*`: RLS enabled on all storage tables (`rls_enabled: true`), `session-media` bucket is `public: false`, zero permissive `storage.objects` policies for `anon`/`authenticated`.
+  - `public.*`: **`rls_disabled` critical advisory** reported across all **21** tables (`_prisma_migrations` and all 20 Prisma models).
 
 ---
 
-## 6. Remaining Security Risks
+## 4. Local Changes Committed & Pushed
 
-1. **Pre-Phase-1 Deployment Currently Live Without Hosted Env**: `first-contact-language-builder.vercel.app` currently serves commit `57c2e7d` returning `503` on `/api/health` until migrations, the 3 missing secrets, and the Phase 1 deploy complete.
-2. **Post-Migration Supabase `public` Schema Exposure Check Needed**: Once `npm run db:migrate` creates the 20 Prisma tables in `public`, Supabase Data API (`PostgREST`) exposes `public` schema tables unless RLS is enabled on them (with no `anon`/`authenticated` policies) or `public` is removed from Data API exposed schemas. Run `get_advisors` (`security`) via `supabase_mcp` immediately after migration and enable RLS on all `public` tables if flagged (Prisma connects as the DB role and continues working normally).
-3. **Vercel Preview Scope**: Only `Production` env vars are configured so far; if Preview deployments are enabled, configure a separate Preview Supabase project rather than sharing Production credentials.
+- Commit `924c914`: `Harden Phase 1 production infrastructure, security, and rate limiting` (28 files)
+- Commit `478d527`: `Tune Prisma serverless pool handling for PgBouncer latency` (`scripts/check-env.mjs`, `lib/database/prisma.ts`)
+- Local SQLite (`data/first-contact.db`) `SHORE-1001` verified untouched (`concepts: 8`, `evidence: 8`, `hypotheses: 11`, `participants: 2`).
 
 ---
 
-## 7. Exact Next Actions Required From You
+## 5. Remaining Security Risks & Next Actions
 
-1. **Retrieve 3 Credentials from Supabase Dashboard (`mogsdvdgfwpsssvcjjoc`)**:
-   - **Project Settings → Database → Connection string**:
-     - `DATABASE_URL`: **Transaction pooler** (`:6543/...?pgbouncer=true&connection_limit=1`)
-     - `DIRECT_URL`: **Direct connection** (`:5432/...`, without `pgbouncer=true`)
-   - **Project Settings → API**:
-     - `SUPABASE_SERVICE_ROLE_KEY`: `service_role` secret key
-
-2. **Add the 3 Remaining Env Vars to Vercel Production** (or provide them securely when ready so I can run steps 2–5):
-   ```bash
-   vercel env add DATABASE_URL production
-   vercel env add DIRECT_URL production
-   vercel env add SUPABASE_SERVICE_ROLE_KEY production
-   ```
-
-3. **Apply Non-Destructive Prisma Migrations to `mogsdvdgfwpsssvcjjoc`** (never run `db:seed`):
-   ```bash
-   DATABASE_URL="<POOLED_POSTGRES_URL>" \
-   DIRECT_URL="<DIRECT_POSTGRES_URL>" \
-   npm run db:migrate
-   ```
-
-4. **Confirm Database Lockdown & Deploy Phase 1**:
-   - Ask me to run `supabase_mcp` `list_tables` / `get_advisors` after step 3 to verify all tables, indexes, `_prisma_migrations`, and `public` RLS lockdown.
-   - Commit & push Phase 1 changes (`git add` / `commit` / `push`, or `vercel --prod`), then I will execute all 12 live production checks in Part 6 against `https://first-contact-language-builder.vercel.app`.
+1. **CRITICAL — Enable RLS on `public` Schema Tables (or Disable `public` in Supabase Data API Settings):**
+   - Because Supabase exposes `public` through PostgREST Data API by default, enabling RLS with no `anon`/`authenticated` policies blocks all external PostgREST client reads/writes while Prisma (which connects directly via `DATABASE_URL` as `postgres`, `rolbypassrls: true`) continues operating normally.
+   - Review and run the SQL below in Supabase SQL Editor (or disable `public` under **Project Settings → Data API**):
+     ```sql
+     ALTER TABLE "public"."_prisma_migrations" ENABLE ROW LEVEL SECURITY;
+     ALTER TABLE "public"."DiscoverySession" ENABLE ROW LEVEL SECURITY;
+     ALTER TABLE "public"."Participant" ENABLE ROW LEVEL SECURITY;
+     ALTER TABLE "public"."Evidence" ENABLE ROW LEVEL SECURITY;
+     ALTER TABLE "public"."Concept" ENABLE ROW LEVEL SECURITY;
+     ALTER TABLE "public"."VocabularyEntry" ENABLE ROW LEVEL SECURITY;
+     ALTER TABLE "public"."ConceptHypothesis" ENABLE ROW LEVEL SECURITY;
+     ALTER TABLE "public"."ConceptRelationship" ENABLE ROW LEVEL SECURITY;
+     ALTER TABLE "public"."VerificationExperiment" ENABLE ROW LEVEL SECURITY;
+     ALTER TABLE "public"."VerificationResponse" ENABLE ROW LEVEL SECURITY;
+     ALTER TABLE "public"."LearningActivity" ENABLE ROW LEVEL SECURITY;
+     ALTER TABLE "public"."ActivityResponse" ENABLE ROW LEVEL SECURITY;
+     ALTER TABLE "public"."ResearchNote" ENABLE ROW LEVEL SECURITY;
+     ALTER TABLE "public"."SessionEvent" ENABLE ROW LEVEL SECURITY;
+     ALTER TABLE "public"."Expression" ENABLE ROW LEVEL SECURITY;
+     ALTER TABLE "public"."ExpressionConcept" ENABLE ROW LEVEL SECURITY;
+     ALTER TABLE "public"."CommunicationTask" ENABLE ROW LEVEL SECURITY;
+     ALTER TABLE "public"."IndependentResponse" ENABLE ROW LEVEL SECURITY;
+     ALTER TABLE "public"."ExperimentProposal" ENABLE ROW LEVEL SECURITY;
+     ALTER TABLE "public"."AccessCredential" ENABLE ROW LEVEL SECURITY;
+     ALTER TABLE "public"."RateLimitBucket" ENABLE ROW LEVEL SECURITY;
+     ```
+2. **Signed Media URL Bearer Behavior**: By design for HTML `<img>`/`<audio>` rendering, `/api/media/[id]?exp=...&sig=...` authorizes access via the HMAC signature alone for the 15-minute TTL (`DEFAULT_TTL_SECONDS=900`), while unsigned/expired requests require a matching session `x-participant-token`.
+3. **Vercel Preview Environment**: Environment variables are currently scoped to `Production` only; if Preview deployments are later used, attach a dedicated Preview Supabase project.
+4. **Cross-Region Latency (`iad1` vs `ap-southeast-2`)**: Vercel functions currently execute in `iad1` (US East) against Supabase in `ap-southeast-2` (Sydney); moving Vercel function region or provisioning Upstash Redis (`RATE_LIMIT_STORE=redis`) is optional future optimization for Phase 2+.
+5. **Commit This Final Report**: After completing the RLS lockdown review, commit and push the updated `PHASE-1-HOSTED-INFRASTRUCTURE-REPORT.md`.
