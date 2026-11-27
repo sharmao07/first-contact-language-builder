@@ -2,7 +2,7 @@
 
 **Live Deployment:** `https://first-contact-language-builder.vercel.app` (Demo Mode active; zero unconsented external model calls)
 
-The 2–4 minute flow below is the judge script. A 27 November 2026 production browser pass confirmed the landing disclosure, community creation, an independent join, evidence from both seats, and hypothesis isolation. It did not finish the blinded lock step: the community page navigation timed out. That lock/reveal behavior is the earlier Phase 2 capture, not a result from this pass. Details are in `FINAL-JUDGING-READINESS-REPORT.md`.
+The 2–4 minute flow below is the judge script. A 27 November 2026 production browser pass confirmed the landing disclosure, community creation, an independent join, evidence from both seats, and hypothesis isolation. It did not finish the blinded lock step: the community page navigation timed out. The lock and reveal shown in screenshots 04 and 05 are from the earlier two-browser capture.
 
 ---
 
@@ -89,4 +89,4 @@ Screenshots captured from `https://first-contact-language-builder.vercel.app`. I
 - **AI Disclosure**: Hosted production runs in **Demo mode (`AI_PROVIDER=demo`)**—no external LLM inspects uploaded files, and every generated hypothesis and check plan is explicitly marked `simulated` / rule-based. External `AI_PROVIDER=openai` behavior was verified against a controlled OpenAI-compatible HTTP test server (`8/8` checks); a live external OpenAI API call in Vercel Preview has **not** run yet because no `OPENAI_API_KEY` or separate Preview Supabase instance is provisioned.
 - **No Linguistic Truth Claim**: `Session-verified` means only that two participants inside one session passed the check thresholds (`>= 2` stimuli, `>= 2` methods, `>= 2` authors, `>= 75%` match rate, `0` disagreements). It does not establish external linguistic accuracy.
 - **Infrastructure & Product Limitations**: Vercel (`iad1`) ↔ Supabase (`ap-southeast-2`) cross-region polling (~2.5s interval) introduces latency compared to local SSE; audio acoustic analysis requires WAV/MP3 + `OPENAI_AUDIO_MODEL` and whole videos are not analyzed; bearer seat keys stored in `localStorage` act as seat credentials until left/rotated/expired; no real human participant study has been conducted yet.
-- **Future Work**: Co-locate Vercel region or add Upstash Redis (`RATE_LIMIT_STORE=redis`), provision Preview Supabase + live `OPENAI_API_KEY` for empirical multimodal prompt evaluation, run supervised human pair testing using `PARTICIPANT-TESTING-PLAN.md`, and explore end-to-end encrypted or offline field synchronization.
+- **Future Work**: Co-locate the Vercel region or add Upstash Redis (`RATE_LIMIT_STORE=redis`), provision a Preview Supabase project and a live `OPENAI_API_KEY` for a real model evaluation, run a supervised pair test, and look at encrypted or offline field sync.
