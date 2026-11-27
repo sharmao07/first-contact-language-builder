@@ -15,7 +15,7 @@ An AI suggestion stays a guess until a facilitator or host accepts it. Acceptanc
 - Verification. Visual discrimination, context testing, reverse demonstration, contrast testing, and repeated checks. The status rule is shown in the workspace.
 - Vocabulary. Search, filter, edit, archive, dispute, and reopen entries. Each card keeps its evidence and status reason.
 - Expression trials. Combine existing concepts. Order and grammar notes are labeled as hypotheses.
-- Practice. Activities are generated only from tentative or verified entries in that session. A miss stores a clarification.
+- Practice. Activities are generated only from session-verified entries in that session. A miss stores a clarification.
 - Research. Counts, a timeline, contributions, concept history, and JSON, CSV, and Markdown export.
 - Relationship graph. Real session concepts and edges, with an empty state and an accessible list of the same links.
 - Illustrative session `SHORE-1001`, marked as sample data rather than fieldwork.
@@ -37,7 +37,7 @@ Browser pages call route handlers under `app/api`. Those handlers validate input
 
 `lib/ai` defines a provider interface. `getProvider()` returns the demo provider unless `AI_PROVIDER=openai` and `OPENAI_API_KEY` are both set. Keys are read only on the server. The demo provider uses the written description and evidence type. It does not inspect file bytes, and every result says so.
 
-Uploaded files are written under `data/uploads/<sessionId>` with a generated name. `GET /api/media/[id]?code=` checks that the evidence belongs to that session before reading the file. SVG uploads from participants are rejected. Media responses are sent with a sandbox content security policy.
+Uploaded files are written under `data/uploads/<sessionId>` locally or to a private Supabase Storage bucket (`SUPABASE_STORAGE_BUCKET`) in production with a generated key. `GET /api/media/[id]` requires either a valid server-signed expiring URL (`?exp=...&sig=...`) or a matching session participant token (`x-participant-token`); a bare `?code=` query is rejected. SVG uploads from participants are rejected. Media responses are sent with a sandbox content security policy.
 
 Session presence is a poll of `/api/sessions/[code]/sync` about every 2.5 seconds. A matching revision returns presence only. A new revision returns the full session.
 
@@ -175,19 +175,20 @@ The smoke script creates a session, joins a second seat, uploads an image, check
 
 ## Production data
 
-Local development stays on SQLite (`DATABASE_URL=file:../data/first-contact.db`) and stores uploads in `data/uploads`. Vercel cannot keep that disk or that file. The Vercel project currently has no database or storage variables, so production session creation still fails until those values exist. The setup sequence is in `SUPABASE-SETUP.md`. `npm run env:check` reports missing names and does not print values.
+Local development stays on SQLite (`DATABASE_URL=file:../data/first-contact.db`) and stores uploads in `data/uploads`. Hosted Vercel deployments require Supabase PostgreSQL, a private Supabase Storage bucket, server-side media signing, and distributed rate limiting (`RATE_LIMIT_STORE=auto` or `redis`). The setup sequence is in `PRODUCTION-SETUP-CHECKLIST.md`, with verified deployment & security closure status in `PHASE-1-HOSTED-INFRASTRUCTURE-REPORT.md` and `PHASE-1-SECURITY-CLOSURE-REPORT.md`. `npm run env:check` reports missing or invalid config without printing values.
 
 Use a separate Supabase project for Preview and for Production. Set the same variable names on each Vercel environment with different values. Do not point Preview at the Production database.
 
 | Name | Development | Preview and Production |
 | --- | --- | --- |
-| `DATABASE_URL` | `file:../data/first-contact.db` | Supabase pooler, port 6543, `?pgbouncer=true&connection_limit=1` |
-| `DIRECT_URL` | unset | Supabase direct connection, port 5432. Prisma uses this for migrations. |
+| `DATABASE_URL` | `file:../data/first-contact.db` | Supabase pooler, port 6543, `?pgbouncer=true&connection_limit=5&pool_timeout=25` |
+| `DIRECT_URL` | unset | Supabase direct connection (`:5432`, or IPv4 session pooler `:5432` without `pgbouncer=true`). Prisma uses this for migrations. |
 | `STORAGE_PROVIDER` | `local` | `supabase` |
 | `SUPABASE_URL` | empty | Project URL, server only |
 | `SUPABASE_SERVICE_ROLE_KEY` | empty | Server only. Never use a `NEXT_PUBLIC` name. |
 | `SUPABASE_STORAGE_BUCKET` | `session-media` | A private bucket. A public bucket fails the storage check. |
 | `MEDIA_SIGNING_SECRET` | optional | At least 16 characters. Media links expire after 15 minutes unless `MEDIA_URL_TTL_SECONDS` is set. |
+| `RATE_LIMIT_STORE` | `auto` | `auto` (PostgreSQL `RateLimitBucket`), `database`, or `redis` |
 
 The service-role key is read only by server code. The browser receives a signed application URL, or sends the participant token, and this server reads the private object.
 
@@ -208,7 +209,7 @@ On Vercel the session view polls `/api/sessions/[code]/sync`. The server-sent st
 - Locally, joined seats receive server-sent updates about once a second, with polling if the stream drops. On Vercel, seats poll about every 2.5 seconds. A quiet seat still shows as quiet after about 12 seconds without a heartbeat.
 - Only two seats exist, A and B. A seat left behind stays reserved for its recovery key.
 - The recovery key lives in the browser's local storage. Losing it means that seat cannot be reclaimed.
-- The session code is the access secret for this local installation. Anyone who can open the server and knows the code can read that session.
+- A seat key (hashed in `AccessCredential` and stored in local storage) grants access to that seat. Knowing only the session code is not enough to read or join a taken seat, and legacy sample tokens are rejected on hosted deployments.
 - Demo hypotheses do not look at pixels or audio. They are labeled as simulations. A failed live provider call is not replaced with a simulation.
 - Audio is not translated. Acoustic description happens only with consent, a wav or mp3 file, and `OPENAI_AUDIO_MODEL`.
 - A whole video is not analyzed. One selected frame can be submitted as an image.

@@ -5,6 +5,7 @@ import { buildRulePlan, reviewRecordedOutcome } from "@/lib/experiments/select";
 import { presentReplies, seesResearchPlan } from "@/lib/experiments/privacy";
 import { buildTimeline } from "@/lib/experiments/timeline";
 import type { EngineSnapshot } from "@/lib/experiments/state";
+import { stimulusIdentity } from "@/lib/verification/experiments";
 import { deriveVerificationStatus } from "@/lib/verification/status";
 import { HttpError } from "@/lib/http";
 
@@ -151,5 +152,59 @@ describe("live planner failures", () => {
       expect(error).toBeInstanceOf(HttpError);
       expect((error as HttpError).message).toContain("No simulated plan was substituted");
     }
+  });
+});
+
+describe("verification thresholds edge cases", () => {
+  it("keeps two participants + two stimuli with only one method in awaiting", () => {
+    // context_testing is non-varied (ignores stimulusNote in stimulusIdentity), whereas varied types distinguish stimuli.
+    expect(stimulusIdentity("context_testing", [{ id: "c1", label: "a" }], "morning spring")).toBe(
+      stimulusIdentity("context_testing", [{ id: "c1", label: "a" }], "evening camp"),
+    );
+    const key1 = stimulusIdentity("reverse_demonstration", [], "morning spring");
+    const key2 = stimulusIdentity("reverse_demonstration", [], "evening camp");
+    expect(key1).not.toBe(key2);
+
+    const status = deriveVerificationStatus({
+      archived: false,
+      disputed: false,
+      participantAccepted: true,
+      checks: [
+        { result: "correct", stimulusKey: key1, experimentType: "reverse_demonstration", authorId: "seat-a" },
+        { result: "correct", stimulusKey: key2, experimentType: "reverse_demonstration", authorId: "seat-b" },
+      ],
+    });
+    expect(status.status).toBe("awaiting");
+    expect(status.reason).toContain("same kind of check");
+  });
+
+  it("moves a meaning to disputed when disagreement is recorded", () => {
+    const status = deriveVerificationStatus({
+      archived: false,
+      disputed: false,
+      participantAccepted: true,
+      checks: [
+        { result: "correct", stimulusKey: "visual_discrimination:clay-cup", experimentType: "visual_discrimination", authorId: "seat-a" },
+        { result: "correct", stimulusKey: "context_testing:c1", experimentType: "context_testing", authorId: "seat-b" },
+        { result: "disagree", stimulusKey: "reverse_demonstration:empty-cup", experimentType: "reverse_demonstration", authorId: "seat-b" },
+      ],
+    });
+    expect(status.status).toBe("disputed");
+  });
+
+  it("keeps a meaning unverified (awaiting) when match rate is below 75%", () => {
+    // 2 matching across 2 stimuli, 2 methods, 2 authors + 1 ambiguous => 2/3 = 66.7% < 75%
+    const status = deriveVerificationStatus({
+      archived: false,
+      disputed: false,
+      participantAccepted: true,
+      checks: [
+        { result: "correct", stimulusKey: "visual_discrimination:spring-stone", experimentType: "visual_discrimination", authorId: "seat-a" },
+        { result: "correct", stimulusKey: "context_testing:dry-gourd", experimentType: "context_testing", authorId: "seat-b" },
+        { result: "ambiguous", stimulusKey: "reverse_demonstration:shaded-pool", experimentType: "reverse_demonstration", authorId: "seat-a" },
+      ],
+    });
+    expect(status.status).toBe("awaiting");
+    expect(status.status).not.toBe("verified");
   });
 });
