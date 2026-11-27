@@ -34,8 +34,8 @@ When two people do not share a spoken or signed language, existing translation t
 - **Say**: *"Next, Ada approves a discriminating visual check (`Separate the liquid, the container, and the motion`). Only a neutral instruction goes to Bao—expected outcome mappings stay hidden with the facilitator. Bao saves and locks a response first; Ada still sees `Locked. Hidden until both responses are in.` Only after Ada also locks do both replies reveal together without bias."*
 
 ### Beat 4 (2:00–2:35) — Earned Verification & Gated Vocabulary / Practice
-- **Screen**: Shared vocabulary `/session/[code]/vocabulary` (`docs/screenshots/06-vocabulary-verified.png`).
-- **Say**: *"Even accepting a hypothesis leaves it `Tentative`. One participant matching across two checks stays a `Facilitator-supported observation`. Only once Ada and Bao both record matching responses across two stimuli and two methods (`>= 75%`, zero disagreements) does `drinking action` become **Session-verified**—unlocking it in solo Practice while keeping `clay bowl` and `pouring vessel` visibly uncertain. And one `Disagree` immediately moves it to `Disputed`."*
+- **Screen**: Shared vocabulary `/session/[code]/vocabulary` (`docs/screenshots/06-vocabulary-verified.png`). This frame is session `BROOK-1509`. All three entries (`drinking action`, `clay bowl`, `pouring vessel`) are labeled **Accepted, not session-verified**. The later capture, after a meaning actually reached session verification, timed out and was not saved.
+- **Say**: *"Accepting a hypothesis leaves it tentative. One participant matching across two checks stays a facilitator-supported observation. Session-verified needs both people, two stimuli, two methods, at least a 75% match rate, and no disagreement. This screenshot is the earlier accepted state, not that completed bar. A disagreement moves a meaning to Disputed."*
 
 ### Beat 5 (2:35–3:00) — Production Hardening & Closing
 - **Say**: *"Under the hood on Vercel and Supabase, uploads go to a private Storage bucket served only through short-lived HMAC-signed URLs, distributed PostgreSQL rate limiting guards every join/upload/AI endpoint, all 21 Postgres tables enforce Row Level Security with Supabase Data API disabled, and local SQLite sample `SHORE-1001` stays cleanly isolated from hosted production."*
@@ -60,14 +60,14 @@ flowchart LR
 
 ## 4. Real Deployment Screenshots
 
-Screenshots captured live from `https://first-contact-language-builder.vercel.app` during Phase 2 automated two-browser workflow execution:
+Screenshots captured from `https://first-contact-language-builder.vercel.app`. Items 1–5 are from the Phase 2 two-browser workflow. Item 6 is the earlier `BROOK-1509` vocabulary frame; the post-verification recapture did not finish.
 
-1. **Landing & epistemic disclosure**: [01-landing.png](file:///Users/ojussharma/Downloads/language/first-contact-language-builder/docs/screenshots/01-landing.png)
-2. **Two-seat start & join workspace**: [02-start-join.png](file:///Users/ojussharma/Downloads/language/first-contact-language-builder/docs/screenshots/02-start-join.png)
-3. **Competing simulated hypotheses board**: [03-discovery-hypotheses.png](file:///Users/ojussharma/Downloads/language/first-contact-language-builder/docs/screenshots/03-discovery-hypotheses.png)
-4. **Blinded experiment before both seats lock**: [04-experiments-blinded.png](file:///Users/ojussharma/Downloads/language/first-contact-language-builder/docs/screenshots/04-experiments-blinded.png)
-5. **Post-lock reveal across both seats**: [05-experiments-revealed.png](file:///Users/ojussharma/Downloads/language/first-contact-language-builder/docs/screenshots/05-experiments-revealed.png)
-6. **Shared vocabulary gating verified vs. tentative entries**: [06-vocabulary-verified.png](file:///Users/ojussharma/Downloads/language/first-contact-language-builder/docs/screenshots/06-vocabulary-verified.png)
+1. **Landing and demo-mode disclosure**: [01-landing.png](docs/screenshots/01-landing.png)
+2. **Two-seat start and join**: [02-start-join.png](docs/screenshots/02-start-join.png)
+3. **Competing simulated hypotheses**: [03-discovery-hypotheses.png](docs/screenshots/03-discovery-hypotheses.png)
+4. **Blinded experiment before both seats lock**: [04-experiments-blinded.png](docs/screenshots/04-experiments-blinded.png)
+5. **Reveal after both seats lock**: [05-experiments-revealed.png](docs/screenshots/05-experiments-revealed.png)
+6. **Vocabulary before session verification** (`BROOK-1509`; three accepted, not session-verified entries): [06-vocabulary-verified.png](docs/screenshots/06-vocabulary-verified.png)
 
 ---
 
@@ -78,7 +78,7 @@ Screenshots captured live from `https://first-contact-language-builder.vercel.ap
 | **Baseline Core (`4fb3e7e` and prior)** | Two-seat discovery domain model, PostgreSQL/SQLite Prisma schemas, verification state machine (`lib/verification/status.ts`), blinded community/experiment visibility rules, consent-gated OpenAI adapter, local `SHORE-1001` illustrative seed. |
 | **UI Redesign (`57c2e7d`)** | Ground-up visual redesign of landing, start/join, discovery workspace, composer, hypothesis board, experiment engine, shared vocabulary, practice, concept dossier, force graph, research dashboard, and accessibility/motion tokens. |
 | **Phase 1 Production & Security (`924c914`..`9ea5af7`)** | Provisioned Supabase PostgreSQL + private `session-media` bucket, server-side HMAC media signing, distributed `RateLimitBucket` limiter across create/join/rejoin/upload/AI routes, legacy sample token isolation on hosted deployments, PgBouncer pool tuning, RLS enabled on all 21 `public` tables, `PUBLIC`/`anon`/`authenticated` privilege revocation + global/schema default-ACL locking, and Supabase Data API disabled. |
-| **Phase 2 Validation & Prep (Current)** | Fixed stale `README.md` claims, built end-to-end two-browser Playwright workflow test (`scripts/full-workflow-browser.mjs`) exercising all verification thresholds, evaluated `openAIProvider`/`requestLivePlan` HTTP contract & failure modes (`scripts/evaluate-ai-provider.mjs`), and prepared participant testing & demo documentation. |
+| **Phase 2 Validation & Prep (`58b1b14`)** | Fixed stale `README.md` claims, added the two-browser workflow script (`scripts/full-workflow-browser.mjs`) and the controlled AI HTTP harness (`scripts/evaluate-ai-provider.mjs`), and added participant-testing and demo notes. The live workflow did not finish the single-method, disagreement, and below-75% checks. |
 
 ---
 

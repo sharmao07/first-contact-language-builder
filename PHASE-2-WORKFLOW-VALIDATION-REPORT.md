@@ -1,13 +1,13 @@
 # Phase 2 — Workflow Validation Report (Checkpoint Summary)
 
-**Status:** **Partial / Stopped by User Request.** Most Phase 1 verification checks, local automated test/build checks, controlled AI contract tests, documentation updates, and `13/14` executed live workflow steps passed on `https://first-contact-language-builder.vercel.app`, while final completion of `10c`/`10d`/`10e`, refreshed screenshot capture for `06-vocabulary-verified.png`, live PostgreSQL cleanup of interrupted runs, and Phase 2 `git commit`/`push` remain pending.
+**Status:** **Partial.** The Phase 2 notes, screenshots, and scripts were committed on `main` as `58b1b14`. Local checks and the controlled AI contract test were recorded as passing. The live workflow on `https://first-contact-language-builder.vercel.app` did not finish `10c`, `10d`, or `10e`. `docs/screenshots/06-vocabulary-verified.png` is still the earlier `BROOK-1509` frame: three entries labeled accepted, not session-verified. Interrupted hosted sessions were not deleted.
 
 ---
 
 ## 1. Part 1 — Phase 1 Checkpoint & Local Integrity
 
 - **Git & Committed Security State**:
-  - `origin/main` is at `9ea5af7` (*Harden Supabase RLS, role privileges, default ACLs, and Data API posture*), with Phase 1 history `924c914` → `478d527` → `c22dd12` → `9ea5af7` committed and pushed.
+  - When this checkpoint was first written, `origin/main` was `9ea5af7` (*Harden Supabase RLS, role privileges, default ACLs, and Data API posture*), with Phase 1 history `924c914` → `478d527` → `c22dd12` → `9ea5af7`. Phase 2 was committed afterward as `58b1b14`.
   - Only `.env.example` is tracked by Git (`git ls-files '.env*'`).
   - Both RLS security migrations (`20261127195500_harden_rls_and_privileges`, `20261127200000_revoke_global_function_default_execute`) are committed and recorded in production `_prisma_migrations` (`PHASE-1-SECURITY-CLOSURE-REPORT.md`).
 - **Deployed Production URL**:
@@ -27,7 +27,7 @@
 
 ## 2. Part 2 — Live Two-Browser Playwright Workflow Results
 
-Script: [scripts/full-workflow-browser.mjs](file:///Users/ojussharma/Downloads/language/first-contact-language-builder/scripts/full-workflow-browser.mjs) against `https://first-contact-language-builder.vercel.app`.
+Script: [scripts/full-workflow-browser.mjs](scripts/full-workflow-browser.mjs) against `https://first-contact-language-builder.vercel.app`.
 
 ### Observed Results in Live Run `task-1173` (Session `BROOK-2322`)
 
@@ -52,9 +52,7 @@ Script: [scripts/full-workflow-browser.mjs](file:///Users/ojussharma/Downloads/l
 
 ---
 
-## 3. Production Database Cleanup & Uncommitted Files Notice
+## 3. Hosted leftovers and what is already in git
 
-- Because runs `task-1111` (`STAR-5168`) and `task-1219` (`FIELD-7141`) were cancelled mid-flight, two test rows (`STAR-5168` with `2` evidence items, `FIELD-7141` with `1` evidence item) and associated `storage.objects` remain in Supabase project `mogsdvdgfwpsssvcjjoc`.
-- Uncommitted Phase 2 workspace files:
-  - Modified: `README.md`
-  - Added: `scripts/full-workflow-browser.mjs`, `scripts/evaluate-ai-provider.mjs`, `docs/screenshots/01-landing.png`–`06-vocabulary-verified.png` (`06-vocabulary-verified.png` reflects pre-verification `BROOK-1509`), `LIVE-AI-EVALUATION-REPORT.md`, `PARTICIPANT-TESTING-PLAN.md`, `HACKATHON-DEMO-SCRIPT.md`, `PHASE-2-WORKFLOW-VALIDATION-REPORT.md`.
+- Because runs `task-1111` (`STAR-5168`) and `task-1219` (`FIELD-7141`) were cancelled mid-flight, those test rows and associated `storage.objects` were still in the hosted project when this report was written. They were not removed in the documentation correction.
+- The Phase 2 files below are committed on `main` at `58b1b14`, not sitting uncommitted: `README.md`, `scripts/full-workflow-browser.mjs`, `scripts/evaluate-ai-provider.mjs`, `docs/screenshots/01-landing.png` through `06-vocabulary-verified.png`, `LIVE-AI-EVALUATION-REPORT.md`, `PARTICIPANT-TESTING-PLAN.md`, `HACKATHON-DEMO-SCRIPT.md`, and this report. `06-vocabulary-verified.png` is the pre-verification `BROOK-1509` frame.

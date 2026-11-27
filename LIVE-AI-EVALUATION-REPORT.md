@@ -4,7 +4,7 @@
 
 **Hosted Vercel Preview Status (External Model Call):** **Blocked / Not Configured.** Neither a server-side `OPENAI_API_KEY` (nor Gemini/Anthropic/OpenRouter key) nor a separate Preview Supabase project exists in `.env`, shell environment, or Vercel (`vercel env ls` confirms Production-only variables and zero Preview deployments). Per safety and environment rules, Preview must not reuse the Production Supabase database, no credentials were invented, and **no live external OpenAI/LLM API call has been executed**.
 
-Instead, the real production TypeScript AI modules ([openAIProvider.analyze](file:///Users/ojussharma/Downloads/language/first-contact-language-builder/lib/ai/openai-provider.ts) and [requestLivePlan](file:///Users/ojussharma/Downloads/language/first-contact-language-builder/lib/ai/plan.ts)) were exercised end-to-end over TCP HTTP against a controlled local OpenAI-compatible HTTP server (`127.0.0.1`) via [scripts/evaluate-ai-provider.mjs](file:///Users/ojussharma/Downloads/language/first-contact-language-builder/scripts/evaluate-ai-provider.mjs).
+Instead, the real production TypeScript AI modules ([openAIProvider.analyze](lib/ai/openai-provider.ts) and [requestLivePlan](lib/ai/plan.ts)) were exercised end-to-end over TCP HTTP against a controlled local OpenAI-compatible HTTP server (`127.0.0.1`) via [scripts/evaluate-ai-provider.mjs](scripts/evaluate-ai-provider.mjs).
 
 ---
 
@@ -53,7 +53,7 @@ Command run: `npx --yes tsx scripts/evaluate-ai-provider.mjs`
 1. **No Real External LLM Evaluation Yet**: Behavior under actual commercial model instruction-following drift, latency variance, or multimodal vision/audio outputs remains unverified until a real `OPENAI_API_KEY` and separate Preview Supabase project are provisioned.
 2. **Written Context & Image Constraints**: Video files (`evidenceType: "video"`) and SVG images are never sent (`mediaPlan`); audio (`wav`/`mp3` only) requires an explicit `OPENAI_AUDIO_MODEL`; browser `.webm` recordings stay stored on disk/Supabase and are not analyzed acoustically.
 3. **Rule Checklist vs. Linguistic Validity**: `withServerQuality` computes an 8-point structural check (e.g., whether stimuli/methods were reused), not empirical linguistic accuracy or statistical information gain.
-4. **Community Mode Guard**: In `community` sessions, [proposeDiscrimination](file:///Users/ojussharma/Downloads/language/first-contact-language-builder/lib/community/propose.ts) uses deterministic rule selection (`source: "rules"`) in demo mode and fails closed if `AI_PROVIDER=openai` fails, preventing silent downgrade.
+4. **Community Mode Guard**: In `community` sessions, [proposeDiscrimination](lib/community/propose.ts) uses deterministic rule selection (`source: "rules"`) in demo mode and fails closed if `AI_PROVIDER=openai` fails, preventing silent downgrade.
 
 ---
 
