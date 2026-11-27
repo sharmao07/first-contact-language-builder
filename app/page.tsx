@@ -23,17 +23,31 @@ const CAPABILITIES = [
   [ShieldCheck, "Portable local records", "Export the local record as JSON, CSV, or a Markdown report."],
 ] as const;
 
+const STATS = [
+  ["2", "Participants, two seats"],
+  ["6", "Protocol steps"],
+  ["75%", "Minimum match rate"],
+  ["0", "Assumptions promoted automatically"],
+] as const;
+
+const WHO = [
+  ["Newcomers & volunteers", "A newcomer and a local volunteer can build a small practical vocabulary for everyday objects, actions, and needs. This supplements interpreters — it is not emergency or medical instruction."],
+  ["Field linguists & researchers", "A researcher can keep alternative readings and the observations that support them during an early elicitation session."],
+  ["Cross-language teams", "A team working across languages can check a procedure or an object with a demonstration instead of assuming a symbol already means the same thing to both people."],
+] as const;
+
 export default function HomePage() {
   const ai = getAIPublicStatus();
   return (
     <>
       <SiteHeader />
       <main id="content">
+        {/* Hero */}
         <section className="hero wrap">
           <div className="stack-lg">
             <div className="stack">
               <p className="eyebrow">Meaning begins before language</p>
-              <h1>Helping people communicate when no shared language exists.</h1>
+              <h1>Helping people communicate<em> when no shared language exists.</em></h1>
               <p className="lede">
                 First-Contact Language Builder helps two people discover what their expressions mean to each other. Don&apos;t assume meaning. Discover it together.
               </p>
@@ -49,11 +63,28 @@ export default function HomePage() {
           <HeroSpecimen />
         </section>
 
+        {/* Stats strip */}
+        <div style={{ borderTop: "1px solid var(--line)", background: "var(--bg-elev)" }}>
+          <div className="wrap" style={{ paddingBlock: "32px 28px" }}>
+            <div className="grid-4">
+              {STATS.map(([value, label]) => (
+                <div key={label} className="stat-card">
+                  <span className="stat-value">{value}</span>
+                  <span className="small muted">{label}</span>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Problem */}
         <section className="section">
           <div className="wrap stack-lg">
             <div className="stack-sm" style={{ maxWidth: "40rem" }}>
-              <h2>The communication problem</h2>
-              <p className="small">Why standard translation tools break down at first contact.</p>
+              <p className="eyebrow">The challenge</p>
+              <h2 style={{ fontFamily: "var(--font-display)", fontWeight: 400, fontSize: "clamp(26px, 2.8vw, 38px)", letterSpacing: "-0.03em" }}>
+                Why standard translation tools break down at first contact.
+              </h2>
             </div>
             <div className="grid-3">
               <article className="surface stack-sm">
@@ -75,11 +106,15 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section className="section">
+        {/* Protocol */}
+        <section className="section-alt">
           <div className="wrap stack-lg">
             <div className="split-aside">
               <div className="stack-sm">
-                <h2>A guided workshop, not a translation.</h2>
+                <p className="eyebrow">The protocol</p>
+                <h2 style={{ fontFamily: "var(--font-display)", fontWeight: 400, fontSize: "clamp(26px, 2.8vw, 38px)", letterSpacing: "-0.03em" }}>
+                  A guided workshop, not a translation.
+                </h2>
                 <p className="small">
                   One person opens a session and invites the other with a code or a QR. They keep separate seats, hold competing guesses open, answer checks independently before seeing each other&apos;s reply, and promote meanings only when checks across distinct examples agree.
                 </p>
@@ -103,11 +138,14 @@ export default function HomePage() {
           </div>
         </section>
 
+        {/* Walkthrough */}
         <section className="section">
           <div className="wrap split-aside" style={{ alignItems: "center" }}>
             <div className="stack">
-              <h2>An illustrated pass</h2>
-              <p className="small">Follow one ambiguous glass through hypothesis, contrast, blinded locking, and a second check.</p>
+              <p className="eyebrow">An illustrated pass</p>
+              <h2 style={{ fontFamily: "var(--font-display)", fontWeight: 400, fontSize: "clamp(26px, 2.8vw, 38px)", letterSpacing: "-0.03em" }}>
+                Follow one ambiguous glass through hypothesis, contrast, and blinded locking.
+              </h2>
               <div className="surface-recessed stack-xs">
                 <p className="small" style={{ color: "var(--ink)", fontWeight: 500 }}>Why two checks matter</p>
                 <p className="small">A single match on one prop can be coincidence. Testing an empty glass against water separates the object from the substance.</p>
@@ -117,19 +155,22 @@ export default function HomePage() {
           </div>
         </section>
 
-        <section className="section">
+        {/* Capabilities */}
+        <section className="section-alt">
           <div className="wrap stack-lg">
-            <div className="stack-sm">
-              <h2>What you can do here</h2>
-              <p className="small">Tools built around field documentation rather than automated guessing.</p>
+            <div className="stack-sm" style={{ maxWidth: "36rem" }}>
+              <p className="eyebrow">What you can do here</p>
+              <h2 style={{ fontFamily: "var(--font-display)", fontWeight: 400, fontSize: "clamp(26px, 2.8vw, 38px)", letterSpacing: "-0.03em" }}>
+                Tools built around field documentation, not automated guessing.
+              </h2>
             </div>
             <div className="grid-3">
               {CAPABILITIES.map(([Icon, title, copy]) => (
-                <article key={title} className="surface stack-sm">
-                  <div className="row" style={{ gap: 10 }}>
-                    <Icon size={18} strokeWidth={1.5} style={{ color: "var(--oxide)", flex: "none" }} aria-hidden="true" />
-                    <h3>{title}</h3>
+                <article key={title} className="card-interactive stack-sm">
+                  <div style={{ width: 36, height: 36, borderRadius: "var(--radius)", background: "var(--oxide-soft)", border: "1px solid color-mix(in srgb, var(--oxide) 20%, var(--line))", display: "grid", placeItems: "center", flexShrink: 0 }}>
+                    <Icon size={18} strokeWidth={1.5} style={{ color: "var(--oxide)" }} aria-hidden="true" />
                   </div>
+                  <h3>{title}</h3>
                   <p className="small">{copy}</p>
                 </article>
               ))}
@@ -137,30 +178,32 @@ export default function HomePage() {
           </div>
         </section>
 
+        {/* Who */}
         <section className="section">
           <div className="wrap stack-lg">
-            <h2>Who this can help</h2>
+            <div className="stack-sm" style={{ maxWidth: "36rem" }}>
+              <p className="eyebrow">Who this can help</p>
+              <h2 style={{ fontFamily: "var(--font-display)", fontWeight: 400, fontSize: "clamp(26px, 2.8vw, 38px)", letterSpacing: "-0.03em" }}>
+                Situations where meaning must be built from scratch.
+              </h2>
+            </div>
             <div className="grid-3">
-              <article className="rule stack-xs">
-                <h3>Newcomers and volunteers</h3>
-                <p className="small">A newcomer and a local volunteer can build a small practical vocabulary for everyday objects, actions, and needs. This supplements interpreters. It is not emergency or medical instruction.</p>
-              </article>
-              <article className="rule stack-xs">
-                <h3>Field linguists and researchers</h3>
-                <p className="small">A researcher can keep alternative readings and the observations that support them during an early elicitation session.</p>
-              </article>
-              <article className="rule stack-xs">
-                <h3>Cross-language teams</h3>
-                <p className="small">A team working across languages can check a procedure or an object with a demonstration instead of assuming a symbol already means the same thing to both people.</p>
-              </article>
+              {WHO.map(([title, copy]) => (
+                <article key={title} className="rule stack-xs">
+                  <h3>{title}</h3>
+                  <p className="small">{copy}</p>
+                </article>
+              ))}
             </div>
           </div>
         </section>
 
+        {/* CTA */}
         <section className="section">
           <div className="wrap grid-2">
             <div className="surface stack">
-              <h2>Privacy and community ownership</h2>
+              <p className="eyebrow">Privacy</p>
+              <h2 style={{ fontFamily: "var(--font-display)", fontWeight: 400 }}>Community ownership</h2>
               <p className="small">Camera and microphone access are requested only when you start a capture. Recordings stay in this installation&apos;s data folder and are not published.</p>
               <p className="small">The application does not train models on what you record. A setting in the app does not create a legal ownership right. It does keep deletion in the participants&apos; hands.</p>
               <p className="small muted">{ai.disclosure}</p>
@@ -170,7 +213,8 @@ export default function HomePage() {
             </div>
             <div className="surface-accent stack" style={{ justifyContent: "space-between" }}>
               <div className="stack">
-                <h2>Begin with one concept</h2>
+                <p className="eyebrow">Get started</p>
+                <h2 style={{ fontFamily: "var(--font-display)", fontWeight: 400 }}>Begin with one concept</h2>
                 <p className="small" style={{ color: "var(--ink)" }}>
                   Open a session, invite the other person with the code or QR, and record one expression before asking for guesses. This installation has not been shown to work for people who truly share no language, and it is not ready for a shared public server.
                 </p>

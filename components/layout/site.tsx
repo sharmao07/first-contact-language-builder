@@ -55,21 +55,27 @@ export function SiteHeader() {
 export function SiteFooter() {
   return (
     <footer className="site-footer">
-      <div className="wrap site-footer-grid">
-        <div className="stack-xs">
-          <div className="wordmark">
-            <span className="reading-mark" aria-hidden="true" />
-            First-Contact Language Builder
+      <div className="wrap stack">
+        <div className="site-footer-grid">
+          <div className="stack-sm">
+            <div className="wordmark">
+              <span className="reading-mark" aria-hidden="true" />
+              First-Contact Language Builder
+            </div>
+            <p className="small">Don&apos;t assume meaning. Discover it together.</p>
+            <p className="small muted">Local-first discovery records. Nothing here is published, and nothing is used to train a model.</p>
           </div>
-          <p className="small">Don&apos;t assume meaning. Discover it together.</p>
-          <p className="small muted">Local-first discovery records. Nothing here is published, and nothing is used to train a model.</p>
+          <div className="site-footer-links">
+            <Link href="/start">Start or join</Link>
+            <Link href="/demo">Sample session</Link>
+            <Link href="/sessions">Sessions</Link>
+            <Link href="/settings">Settings</Link>
+            <Link href="/privacy">Privacy and deletion</Link>
+          </div>
         </div>
-        <div className="site-footer-links">
-          <Link href="/start">Start or join</Link>
-          <Link href="/demo">Sample session</Link>
-          <Link href="/sessions">Sessions</Link>
-          <Link href="/settings">Settings</Link>
-          <Link href="/privacy">Privacy and deletion</Link>
+        <div className="site-footer-copy">
+          <p className="small muted">First-Contact Language Builder · Phase 1</p>
+          <p className="small muted">Built for community access. Not for emergency or medical use.</p>
         </div>
       </div>
     </footer>
