@@ -1,60 +1,133 @@
 # First-Contact Language Builder
 
-Two people who do not share a language can record what they show each other and test what it might mean. The app suggests readings. A person still has to accept one, and acceptance is only a tentative interpretation. Session-verified is a separate status, and it applies only inside that session.
+A two-seat workspace for working out what expressions mean when two people do not share a language. Each participant records evidence, holds competing readings open, runs checks to tell those readings apart, and locks an answer before seeing the other seat's reply. A meaning becomes session-verified only when the session's checks pass, not because someone clicked accept on a suggestion.
 
-A concept reaches session-verified after two people record matching checks on two different stimuli and two different methods, with no disagreement and at least three quarters of the responses matching. One person's matches stay a facilitator-supported observation. A verified entry can be reopened. The status is the session's own rule, not a claim that the meaning is linguistically true.
+Live site: [first-contact-language-builder.vercel.app](https://first-contact-language-builder.vercel.app)
 
-Live site: [first-contact-language-builder.vercel.app](https://first-contact-language-builder.vercel.app). The hosted app runs in demo mode. Hypotheses there are simulated from the written description, the evidence type, and the action label. No model inspects the image, drawing, or audio.
+The hosted deployment runs in demo mode. Hypotheses and check suggestions there are simulated from the written description, the evidence type, and the action label. No model inspects uploaded images, drawings, or audio on the live site.
 
-## What a session holds
+Submission records in this repository: [DEVPOST-SUBMISSION-DRAFT.md](DEVPOST-SUBMISSION-DRAFT.md), [GLOBAL-AI-RUBRIC-EVIDENCE.md](GLOBAL-AI-RUBRIC-EVIDENCE.md), and [HACKATHON-DEMO-SCRIPT.md](HACKATHON-DEMO-SCRIPT.md).
 
-One person creates a session and shares a code such as `TREE-4821`. The other person joins from a second browser as seat A or seat B. A recovery key, stored in that browser, reopens the same seat. Both browsers poll the session and see new evidence, hypotheses, and checks.
+## Screenshots
 
-Evidence can be a camera photo, an uploaded image, a drawing, a microphone recording, a gesture description, a live demonstration, a short video, or a written note. Local files stay in `data/uploads`. Production files stay in a private storage bucket. A file is served only to a seat in that session.
+Landing page with the `SHORE-1001` specimen card and demo-mode disclosure:
 
-The demo facilitator, or an optional OpenAI-compatible model, can propose several readings, name what is still ambiguous, and suggest one follow-up check. People can accept, reject, or challenge a reading. The app does not mark a concept verified on its own.
+![Landing page showing the hero, SHORE-1001 specimen card, and protocol steps](docs/screenshots/01-landing.png)
 
-Checks include visual discrimination, context testing, reverse demonstration, contrast testing, and repeated trials. The vocabulary list can be searched, filtered, edited, archived, disputed, and reopened. Expression trials combine concepts that already exist, and any note about order or grammar is labeled as a hypothesis. Practice activities are built only from entries that session has verified. A miss stores a clarification. Research export is JSON, CSV, or Markdown for that session. The relationship graph uses the session's real concepts and links.
+Discovery workspace (session `BROOK-2322`) showing simulated hypotheses kept in an unverified guess state:
 
-`SHORE-1001` is an illustrative sample. It is labeled as sample data, not fieldwork.
+![Discovery workspace showing competing simulated hypotheses and participant controls](docs/screenshots/03-discovery-hypotheses.png)
 
-## Stack
+Experiment check before both seats lock (Seat B's reply stays hidden):
 
-Next.js App Router, React, TypeScript, and Tailwind CSS. Buttons use a small shadcn-style set (`class-variance-authority`, `clsx`, `tailwind-merge`). Icons are Lucide. Motion is Framer Motion. Data is Prisma with SQLite locally and PostgreSQL in production. Validation is Zod. The graph layout is `d3-force`.
+![Experiment check screen showing blinded response status before both participants lock](docs/screenshots/04-experiments-blinded.png)
 
-## How the code is split
+Experiment check after both seats lock and responses are revealed:
 
-Pages call route handlers in `app/api`. Those handlers validate input with Zod and call `lib/domain`. Domain functions are the only writers of session data, and queries are scoped by session id.
+![Experiment check screen showing both locked responses revealed side by side](docs/screenshots/05-experiments-revealed.png)
 
-`lib/ai` is the provider interface. `getProvider()` returns the demo provider unless `AI_PROVIDER=openai` and `OPENAI_API_KEY` are both set. The key stays on the server. The demo provider uses the written description and the evidence type. It does not read file bytes, and the result says so.
+## How it works
 
-Uploads go to `data/uploads/<sessionId>` locally, or to a private Supabase bucket named by `SUPABASE_STORAGE_BUCKET` in production. `GET /api/media/[id]` accepts a server-signed URL (`?exp=...&sig=...`) or a matching `x-participant-token`. A bare `?code=` is rejected. Participant SVG uploads are rejected. Media responses use a sandbox content security policy.
+One person creates a session and shares a code such as `TREE-4821` or its QR link. A second person opens the app in a separate browser and joins the open seat as Seat A or Seat B. Each seat receives a recovery key saved in that browser's local storage. A session code alone cannot reclaim a seat that has already been taken.
 
-Presence is a poll of `/api/sessions/[code]/sync` about every 2.5 seconds. The same revision returns presence only. A new revision returns the session.
+1. Record evidence. Either seat adds a camera photo, uploaded image, drawing, microphone recording, gesture description, demonstration note, short video, or written note. Files stay in `data/uploads/<sessionId>` during local development or in a private Supabase bucket in production.
+2. Hold competing readings. The demo facilitator or an optional OpenAI-compatible provider proposes several interpretations alongside what remains ambiguous. Accepting a reading saves it as a tentative entry rather than a verified meaning.
+3. Design checks. Participants or the assistant propose structured checks such as visual discrimination, context testing, reverse demonstration, contrast testing, or repeated trials. Each check lists what different outcomes would support or weaken.
+4. Lock replies independently. Each participant writes and locks a response without seeing the other seat's answer. The API withholds one seat's response until both seats have locked.
+5. Session verification. A concept reaches `verified` inside that session only when all of these conditions hold:
+   - a participant has accepted the wording,
+   - two participants recorded matching checks,
+   - at least two distinct stimuli were tested,
+   - at least two different experiment methods were used,
+   - no disagreement is on record in the current round, and
+   - at least 75% of recorded responses matched.
+
+Matches from a single participant stay a facilitator-supported observation (`tentative`) rather than shared session verification. Session verification applies only within that session and can be reopened at any time.
+
+Verified concepts feed the searchable vocabulary board, expression trials combining existing concepts (with any word-order notes marked as hypotheses), and practice prompts drawn only from entries that session recorded.
+
+## AI functionality
+
+`lib/ai` separates hypothesis analysis and experiment planning behind a provider interface (`getProvider()`).
+
+Demo mode is the default unless both `AI_PROVIDER=openai` and a non-empty `OPENAI_API_KEY` are configured on the server. Demo mode generates readings and check suggestions from text fields and labels. It never inspects file bytes and labels every output as simulated. This is what the hosted submission deployment runs.
+
+When an OpenAI-compatible provider is configured on the server, `OPENAI_API_KEY` stays server-side. Individual media bytes are sent only when the participant checks per-item analysis consent (`consentToAnalyze`), and only for images (`image/jpeg`, `image/png`, `image/gif`, `image/webp` up to 4 MB) or audio (`wav` or `mp3` when `OPENAI_AUDIO_MODEL` is also set). Browser `webm` recordings stay stored without being sent, and full videos are never sent (participants can submit one frame as an image instead).
+
+Live experiment planning requires both per-item analysis consent (evidence without consent has its text omitted in `groundSnapshot`) and an explicit facilitator confirmation (`shareWithModel`). Raw media bytes are not sent during experiment planning.
+
+If a live provider errors, rate-limits, times out, or returns invalid JSON, the server returns an HTTP error (`429`, `502`, `503`, or `504`) and never falls back to a simulated result. AI cannot accept a hypothesis on behalf of a participant, bypass blinded locking, or mark a concept verified.
+
+## Technology stack
+
+- Next.js 15 App Router, React 19, TypeScript
+- Tailwind CSS v4, custom design tokens in `app/globals.css`, Lucide icons, Framer Motion, shadcn-style button utilities (`class-variance-authority`, `clsx`, `tailwind-merge`)
+- Zod validation, Prisma ORM (`@prisma/client`) with SQLite locally and PostgreSQL (`pg`) in production
+- `d3-force` for concept graph layout, `qrcode` for session invite codes
+- Vitest and Playwright (`playwright-core`)
+- Vercel (`@vercel/speed-insights`) and Supabase (PostgreSQL and private storage) for the hosted deployment
+
+## Architecture
+
+Pages and components call Next.js Route Handlers under `app/api`. Handlers validate payloads with Zod and delegate writes to `lib/domain`, where queries are scoped by `sessionId` and gated by participant token resolution (`lib/access/credentials.ts`).
+
+Presence and session updates poll `/api/sessions/[code]/sync` roughly every 2.5 seconds on Vercel. On a local Node server, `/api/sessions/[code]/stream` can push server-sent events for up to 45 seconds before closing.
 
 ```
-app/                  pages and route handlers
-components/           workspace, vocabulary, practice, graph, research
-lib/ai                demo provider and OpenAI-compatible provider
-lib/domain            session, evidence, checks, serialization
-lib/verification      status rule and experiment prompts
-lib/learning          practice generation
-lib/storage           private upload paths
-prisma/schema.prisma  relational model
-prisma/seed.ts        illustrative session
-data/                 local SQLite database and uploads
-tests/                unit tests
-scripts/smoke.mjs     HTTP smoke test against a running server
+app/                  Next.js App Router pages, layout, and API routes
+components/           Workspace shell, discovery, checks, vocabulary, graph, research UI
+lib/
+  access/             Token hashing, AccessCredential lookup, seat policy
+  ai/                 Demo provider, OpenAI-compatible provider, live experiment planner
+  community/          Guided community-access scenarios and visibility helpers
+  database/           Prisma client setup
+  demo/               SHORE-1001 illustrative data and operator helpers
+  domain/             Session writes, discovery, checks, serialization, exports
+  experiments/        Experiment state, blinded reply filtering, quality checks
+  learning/           Practice prompt builder
+  media/              HMAC URL signing and expiry checks
+  security/           Database and Redis rate limiting (RateLimitBucket)
+  storage/            Local filesystem vs private Supabase storage
+  verification/       Session-verified threshold rule and stimulus identity
+prisma/
+  schema.prisma       SQLite schema for local development
+  schema.postgresql.prisma  PostgreSQL schema for hosted deployments
+  migrations/         PostgreSQL SQL migrations (including RateLimitBucket and RLS hardening)
+  seed.ts             Seeds the SHORE-1001 illustrative sample session
+scripts/              Environment check, DB setup/copy/migrate, smoke and browser journeys
+tests/                Vitest suites for verification rules, access control, AI, and migrations
+docs/screenshots/     Application screenshots referenced in docs
 ```
 
-## Install and run
+## Local installation
+
+Requirements: Node 20+ and npm.
+
+1. Clone and install dependencies:
 
 ```bash
+git clone https://github.com/sharmao07/first-contact-language-builder.git
+cd first-contact-language-builder
 npm install
+```
+
+2. Create a local environment file:
+
+```bash
+cp .env.example .env
+```
+
+The defaults in `.env.example` run with SQLite (`DATABASE_URL="file:../data/first-contact.db"`), local file uploads, and demo AI mode. No cloud keys are required locally.
+
+3. Set up the database and seed the `SHORE-1001` sample session:
+
+```bash
 npm run db:setup
 ```
 
-`db:setup` generates the Prisma client, creates `data/first-contact.db`, and seeds `SHORE-1001`. Copy `.env.example` to `.env` if you do not have one. The SQLite path is relative to `prisma/`.
+`db:setup` runs `prisma generate && prisma db push && tsx prisma/seed.ts`. It creates `data/first-contact.db` (resolved relative to `prisma/`) and populates `SHORE-1001`, an illustrative sample containing water/container/drinking evidence splits, a rejected reading, a disputed gesture, completed checks, practice prompts, an expression trial, and research notes.
+
+4. Start the development server:
 
 ```bash
 npm run dev
@@ -62,116 +135,87 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000).
 
-```bash
-npm run build
-npm run start
-```
-
-## Database
-
-The schema covers sessions, participants, evidence, concepts, vocabulary, hypotheses, relationships, verification experiments and responses, learning activities, research notes, expression trials, and session events. Deleting a session cascades. A concept stores a status, a written reason, and a reopen time, so an old disagreement stays in the history.
+5. Test, check, and build commands (from `package.json`):
 
 ```bash
-npm run db:push     # apply schema.prisma to the local SQLite file
-npm run db:seed     # replace the illustrative session only
+npm test           # Vitest unit tests
+npm run typecheck  # TypeScript check (tsc --noEmit)
+npm run lint       # ESLint
+npm run build      # Generates the Prisma schema for build and runs next build
+npm run start      # Starts the built production Next.js server
+npm run smoke      # Runs HTTP end-to-end checks against a running server on port 3000
 ```
 
-## Demo mode
-
-Demo mode is on unless `AI_PROVIDER` is `openai` and `OPENAI_API_KEY` is set. The sample session is `SHORE-1001`, named First Contact Experiment 001, with seats Researcher A and Participant B. Opening a seat or resetting that sample needs the local operator secret. `/demo` shows the two curl commands. Reset rewrites only that sample.
-
-The sample splits water from drinking and from a container. It includes a rejected river reading, a disputed movement gesture, verified and unresolved entries, checks, practice, an expression trial, and research notes. You can also start an empty session. In demo mode the suggestions use what was typed and the evidence type. The workspace says the file itself was not analyzed.
-
-## Live model
+Local schema and sample maintenance:
 
 ```bash
-AI_PROVIDER="openai"
-OPENAI_API_KEY="your key"
-OPENAI_BASE_URL="https://api.openai.com/v1"
-OPENAI_MODEL="gpt-4o-mini"
-OPENAI_AUDIO_MODEL=""
-AI_TIMEOUT_MS="25000"
+npm run db:push    # Apply prisma/schema.prisma to local SQLite
+npm run db:seed    # Reset and re-seed SHORE-1001 only
 ```
 
-Leave `AI_PROVIDER` as `demo` and `OPENAI_API_KEY` empty to stay in demo mode. If the provider is set to `openai` and the key is missing, the app stays in demo mode and says why.
+## Environment variables
 
-The key is not sent to the browser. A file is sent only after the participant checks consent on that item. With consent, a JPEG, PNG, GIF, or WebP under 4 MB can go to the vision model. Observations stay separate from inferred meanings. Audio is sent only when `OPENAI_AUDIO_MODEL` is set, the file is wav or mp3, and consent is checked. The prompt forbids translation and invented phonemes. Browser recordings are often webm, so they stay stored unless someone uploads wav or mp3. A whole video is not sent. A participant can submit one frame as a still image. If the provider errors, rate-limits, times out, or returns an unexpected shape, the app reports the failure. It does not fill in a simulated analysis, and it does not verify a meaning.
+Configured in `.env.example`:
 
-## Environment
+| Variable | Local default | Purpose |
+| --- | --- | --- |
+| `DATABASE_URL` | `file:../data/first-contact.db` | SQLite locally (relative to `prisma/`), or Supabase transaction pooler URL (`:6543`, `?pgbouncer=true&connection_limit=1`) in production |
+| `DIRECT_URL` | unset | Hosted only. Direct PostgreSQL URL (`:5432`) for `npm run db:migrate` and `npm run db:copy` |
+| `AI_PROVIDER` | `demo` | `demo` or `openai` |
+| `OPENAI_API_KEY` | empty | Server-only API key; empty keeps demo mode active |
+| `OPENAI_BASE_URL` | `https://api.openai.com/v1` | OpenAI-compatible base URL |
+| `OPENAI_MODEL` | `gpt-4o-mini` | Chat model for hypotheses and planning |
+| `OPENAI_AUDIO_MODEL` | empty | Optional model for consented `wav`/`mp3` acoustic descriptions |
+| `AI_TIMEOUT_MS` | `25000` | Request timeout in milliseconds |
+| `STORAGE_PROVIDER` | `local` | `local` (`data/uploads`) or `supabase` |
+| `SUPABASE_URL` | empty | Hosted only. Supabase project URL |
+| `SUPABASE_SERVICE_ROLE_KEY` | empty | Hosted only. Server-only service key |
+| `SUPABASE_STORAGE_BUCKET` | `session-media` | Hosted only. Must be a private bucket |
+| `MEDIA_SIGNING_SECRET` | empty | Required on hosted deployments (16+ chars). Local dev falls back to a built-in development key |
+| `MEDIA_URL_TTL_SECONDS` | `900` | Signed media URL lifetime (60 to 3600 seconds) |
+| `RATE_LIMIT_STORE` | `auto` | Uses Upstash/Vercel KV Redis REST if configured, otherwise atomic database `RateLimitBucket` rows (never in-memory) |
+| `UPSTASH_REDIS_REST_URL` / `UPSTASH_REDIS_REST_TOKEN` | empty | Optional Redis REST credentials for rate limiting |
+| `ALLOW_DEMO_OPERATOR` / `DEMO_OPERATOR_SECRET` / `DEMO_OPERATOR_DISABLED` | empty | Local-only controls for `/api/demo/enter` and `/api/demo/reset` (disabled automatically on Vercel preview/production) |
+| `RECOVERY_TOKEN_TTL_HOURS` / `DEMO_ENTRY_TTL_MINUTES` | `168` / `120` | Token lifetimes for newly issued recovery and demo credentials |
+| `MAX_IMAGE_BYTES` / `MAX_AUDIO_BYTES` / `MAX_VIDEO_BYTES` | `8000000` / `10000000` / `25000000` | Upload size limits |
+| `SYNC_TRANSPORT` | empty | Optional `stream` locally; `poll` is forced on Vercel |
 
-| Variable | Purpose |
-| --- | --- |
-| `DATABASE_URL` | SQLite URL, relative to `prisma/`. Default `file:../data/first-contact.db`. |
-| `AI_PROVIDER` | `demo` or `openai`. |
-| `OPENAI_API_KEY` | Server-only. Empty keeps demo mode. |
-| `OPENAI_BASE_URL` | OpenAI-compatible base URL. |
-| `OPENAI_MODEL` | Chat model name. |
-| `OPENAI_AUDIO_MODEL` | Optional. Empty means recordings are stored and not sent. |
-| `AI_TIMEOUT_MS` | Provider timeout. Default 25000. |
-| `MAX_IMAGE_BYTES` | Image and drawing limit. Default 8000000. |
-| `MAX_AUDIO_BYTES` | Audio limit. Default 10000000. |
-| `MAX_VIDEO_BYTES` | Video limit. Default 25000000. |
+Run `npm run env:check` to validate environment configuration without printing secret values. Never commit `.env` or secret values.
 
-## Tests
+For hosted PostgreSQL deployments, `npm run db:migrate` runs `scripts/migrate-postgres.mjs` against `DIRECT_URL`, and `npm run db:copy` inspects local counts or copies an empty Postgres database when `CONFIRM_DATA_COPY=yes`. `/api/health` checks database, storage, and media signing status and returns `503` if any check fails.
+
+## Security and privacy
+
+Joining a session issues a token stored in browser local storage and hashed server-side in `AccessCredential`. Leaving a session revokes active access for that seat until rejoined with its key. Hosted deployments reject the legacy sample tokens.
+
+Domain readers and writers check the participant token against the target session and seat role. In community sessions, hidden facilitator plans, hypothesis counts, and private check wording are redacted from the participant seat (`lib/community/visibility.ts` and `lib/experiments/privacy.ts`).
+
+Uploads live outside `public/`. `GET /api/media/[id]` requires either a valid HMAC-signed `?exp=...&sig=...` query or a matching `x-participant-token` header; a bare `?code=` parameter is rejected. Participant SVG uploads are blocked, and media responses include `Content-Security-Policy: sandbox`.
+
+Session creation, joins, rejoins, uploads, and AI calls are rate-limited across IP, session code, and actor dimensions via `RateLimitBucket` database rows or Redis REST, failing closed (`503`) if the store is unavailable. Production PostgreSQL migrations enable Row Level Security on all public tables without `anon` or `authenticated` policies and revoke public table, function, and sequence privileges.
+
+Uploaded media is sent to an external AI provider only when `consentToAnalyze` is checked on that evidence item, within format and size caps.
+
+## Current limitations
+
+Production runs in demo mode and does not inspect images, drawings, or audio bytes. `SHORE-1001` is invented sample data, and the tool has not been evaluated in fieldwork with people who share no language.
+
+Session verification is local to the session: `verified` means two seats met the threshold on two stimuli and two methods inside that session, not that the meaning holds generally or transfers elsewhere. Sessions have two seats (A and B) with no separate observer seat, and on Vercel seats synchronize by polling roughly every 2.5 seconds.
+
+As recorded in `HACKATHON-DEMO-SCRIPT.md` and `GLOBAL-AI-RUBRIC-EVIDENCE.md`, the 27 November production browser workflow confirmed session creation, joining, evidence upload, and hypothesis isolation, while the later community-page step timed out and the single-method, disagreement, and below-75% cases are covered in tests rather than a completed live browser run.
+
+There are no user accounts, and local SQLite files and uploaded media on disk are not encrypted at rest.
+
+## Contributing
+
+Run the checks before proposing changes:
 
 ```bash
-npm test
-npm run typecheck
-npm run lint
-npm run build
+npm test && npm run typecheck && npm run lint
 ```
 
-With the app running:
+With a local server running on port 3000:
 
 ```bash
 npm run smoke
 ```
-
-The smoke script creates a session, joins a second seat, uploads an image, checks that hypotheses stay unverified, runs two checks, builds practice and an expression, exports Markdown, checks that another session cannot read the file, and deletes that session.
-
-## Production
-
-Local development uses SQLite at `DATABASE_URL=file:../data/first-contact.db` and `data/uploads`. A hosted deployment needs PostgreSQL, a private storage bucket, server-side media signing, and rate limiting. `npm run env:check` reports missing or invalid config and does not print values.
-
-Use a separate Supabase project for Preview and for Production. Set the same variable names on each Vercel environment with different values. Do not point Preview at the Production database.
-
-| Name | Development | Preview and Production |
-| --- | --- | --- |
-| `DATABASE_URL` | `file:../data/first-contact.db` | Supabase pooler, port 6543, `?pgbouncer=true&connection_limit=5&pool_timeout=25` |
-| `DIRECT_URL` | unset | Supabase direct connection (`:5432`, or the IPv4 session pooler `:5432` without `pgbouncer=true`). Prisma uses this for migrations. |
-| `STORAGE_PROVIDER` | `local` | `supabase` |
-| `SUPABASE_URL` | empty | Project URL, server only |
-| `SUPABASE_SERVICE_ROLE_KEY` | empty | Server only. Do not put it in a `NEXT_PUBLIC` name. |
-| `SUPABASE_STORAGE_BUCKET` | `session-media` | A private bucket. A public bucket fails the storage check. |
-| `MEDIA_SIGNING_SECRET` | optional | At least 16 characters. Links expire after 15 minutes unless `MEDIA_URL_TTL_SECONDS` is set. |
-| `RATE_LIMIT_STORE` | `auto` | `auto` uses the PostgreSQL `RateLimitBucket`. `database` and `redis` are the other choices. |
-
-Server code reads the service-role key. The browser gets a signed application URL, or sends the participant token, and this server reads the private object.
-
-Apply the checked-in SQL migration to an empty database. This does not reset a database that already has rows, and it does not touch SQLite:
-
-```bash
-npm run db:migrate
-```
-
-`npm run db:copy` prints local row counts and stops. With `CONFIRM_DATA_COPY=yes` it copies into an empty Postgres database through `DIRECT_URL`, then uploads `data/uploads` when storage is Supabase. It refuses to write if Postgres already has sessions. It does not delete the SQLite file or the local uploads. `npm run db:seed` replaces `SHORE-1001`, so do not seed after a copy.
-
-`/api/health` checks the database, storage, and media signing separately. It returns 503 unless all three are usable, and the body does not include credentials.
-
-On Vercel the session view polls `/api/sessions/[code]/sync`. The server-sent stream stays available on the local Node server and closes itself after 45 seconds. A Vercel function cannot hold that stream open for a whole session.
-
-## Limits
-
-Locally, joined seats get server-sent updates about once a second, and fall back to polling if the stream drops. On Vercel, seats poll about every 2.5 seconds. A quiet seat shows as quiet after about 12 seconds without a heartbeat.
-
-There are two seats, A and B. A seat that leaves stays reserved for its recovery key. The key lives in that browser's local storage. If it is lost, the seat cannot be reclaimed. The key is hashed in `AccessCredential`. The session code alone does not open a taken seat, and hosted deployments reject the old sample tokens.
-
-Demo hypotheses do not look at pixels or audio, and they are labeled as simulations. A failed live provider call is not replaced with a simulation. Audio is not translated. A whole video is not analyzed. The graph can be panned, zoomed, and dragged. Practice asks the participant to judge a gesture or expression. The app does not watch them. Saving data on the machine that runs the app does not create a legal ownership right. There is no account system and no encryption at rest.
-
-## Later
-
-A community-run sync service, more providers behind the same interface, phonetic comparison that does not pretend to know an undocumented language, and an export a group can carry without this codebase.
-
-## What the record is for
-
-An image can fit more than one meaning. Pointing does not settle a word. A gesture can mean different things in different communities. Similar sounds are not similar meanings. Agreement is stored with the situation it came from. Checks should use different examples. A model confidence number is an estimate, not a probability. The record can hold a disagreement, and the people in the session can reject what the software suggested.
