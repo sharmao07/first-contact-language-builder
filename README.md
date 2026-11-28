@@ -6,7 +6,6 @@ Live site: [first-contact-language-builder.vercel.app](https://first-contact-lan
 
 The hosted deployment runs in demo mode. Hypotheses and check suggestions there are simulated from the written description, the evidence type, and the action label. No model inspects uploaded images, drawings, or audio on the live site.
 
-Submission records in this repository: [DEVPOST-SUBMISSION-DRAFT.md](DEVPOST-SUBMISSION-DRAFT.md), [GLOBAL-AI-RUBRIC-EVIDENCE.md](GLOBAL-AI-RUBRIC-EVIDENCE.md), and [HACKATHON-DEMO-SCRIPT.md](HACKATHON-DEMO-SCRIPT.md).
 
 ## Screenshots
 
@@ -201,6 +200,10 @@ Session verification is local to the session: `verified` means two seats met the
 As recorded in `HACKATHON-DEMO-SCRIPT.md` and `GLOBAL-AI-RUBRIC-EVIDENCE.md`, the 27 November hosted production browser pass confirmed session creation, joining, evidence upload, and hypothesis isolation before a community-page navigation timed out, and an earlier production script check hit `status=undefined` because it repeated a non-varied check method (`context_testing`). Locally against `next start` and SQLite on 28 November 2026, the full unit suite, `scripts/community-browser.mjs` (7/7), and `scripts/full-workflow-browser.mjs` (18/18) passed, covering community lock/reveal, single-method awaiting, disagreement (`disputed`), below-75% match rate (`awaiting`), and cross-seat access restrictions; those local runs do not replace hosted production re-testing.
 
 There are no user accounts, and local SQLite files and uploaded media on disk are not encrypted at rest.
+
+### AI-assisted development
+
+Cursor was used for debugging and code assistance during development. Suggested changes were reviewed and checked against the application's behavior using automated tests and browser workflows.
 
 ## Contributing
 
