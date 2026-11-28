@@ -10,21 +10,17 @@ Submission records in this repository: [DEVPOST-SUBMISSION-DRAFT.md](DEVPOST-SUB
 
 ## Screenshots
 
-Landing page with the `SHORE-1001` specimen card and demo-mode disclosure:
+Landing page with the `SHORE-1001` specimen card:
 
-![Landing page showing the hero, SHORE-1001 specimen card, and protocol steps](docs/screenshots/01-landing.png)
+![Landing page showing the hero section and SHORE-1001 specimen card](docs/screenshots/landing.png)
 
-Discovery workspace (session `BROOK-2322`) showing simulated hypotheses kept in an unverified guess state:
+Session setup for creating or joining a two-seat workspace:
 
-![Discovery workspace showing competing simulated hypotheses and participant controls](docs/screenshots/03-discovery-hypotheses.png)
+![Start page showing session creation, code joining, and purpose options](docs/screenshots/start.png)
 
-Experiment check before both seats lock (Seat B's reply stays hidden):
+Community access workspace with guided situations, session code, and demo-mode banner:
 
-![Experiment check screen showing blinded response status before both participants lock](docs/screenshots/04-experiments-blinded.png)
-
-Experiment check after both seats lock and responses are revealed:
-
-![Experiment check screen showing both locked responses revealed side by side](docs/screenshots/05-experiments-revealed.png)
+![Community access workspace showing sidebar navigation, session code, and guided situations](docs/screenshots/workspace.png)
 
 ## How it works
 
