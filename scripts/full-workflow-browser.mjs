@@ -167,7 +167,18 @@ async function main() {
       `evA=${evARes.status()} evB=${evBRes.status()}`,
     );
 
-    // 4. Create competing hypotheses (and confirm non-verification + community blinding)
+    // 4. Create competing hypotheses (and confirm non-verification + community blinding + protected-data boundaries)
+    const analyzeDeniedB = await apiCall(`/api/sessions/${code}/analyze`, tokenB, { evidenceId: evAJson.evidenceId });
+    const deleteDeniedB = await api.delete(`${base}/api/sessions/${code}/evidence/${evAJson.evidenceId}`, {
+      headers: { "x-participant-token": tokenB },
+    });
+    const mediaUnauth = await api.get(`${base}/api/media/${evAJson.evidenceId}`);
+    note(
+      "4a. participant blocked from facilitator actions, other's evidence, and unsigned media",
+      analyzeDeniedB.status === 403 && deleteDeniedB.status() === 403 && mediaUnauth.status() === 404,
+      `analyzeB=${analyzeDeniedB.status} deleteB=${deleteDeniedB.status()} mediaUnauth=${mediaUnauth.status()}`,
+    );
+
     const analyzeRes = await apiCall(`/api/sessions/${code}/analyze`, tokenA, { evidenceId: evAJson.evidenceId });
     const stateAAfterAnalyze = await (await api.get(`${base}/api/sessions/${code}`, { headers: { "x-participant-token": tokenA } })).json();
     const stateBAfterAnalyze = await (await api.get(`${base}/api/sessions/${code}`, { headers: { "x-participant-token": tokenB } })).json();

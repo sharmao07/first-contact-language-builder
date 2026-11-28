@@ -23,21 +23,21 @@ When two people do not share a spoken or signed language, existing translation t
 ## 2. 2–3 Minute Live Demo Script
 
 ### Beat 1 (0:00–0:30) — Setup & Problem Statement
-- **Screen**: Landing page (`docs/screenshots/01-landing.png`) → `/start` (`docs/screenshots/02-start-join.png`).
+- **Screen**: Landing page (`docs/screenshots/landing.png`) → `/start` (`docs/screenshots/start.png`) → community workspace (`docs/screenshots/workspace.png`).
 - **Say**: *"Most AI language tools assume a dictionary already exists. Here, two people start with zero shared vocabulary. In Browser 1, Ada opens a community session (`RIDGE`/`WAVE`-style code) and shares the join link; in Browser 2, Bao joins independently on Seat B."*
 - **Action**: Point out the **Demo mode disclosure banner** on the page—explicitly stating no model inspects uploaded media in Demo mode.
 
 ### Beat 2 (0:30–1:15) — Multimodal Evidence & Competing Hypotheses
-- **Screen**: Discovery workspace `/session/[code]` → **Hypotheses** tab (`docs/screenshots/03-discovery-hypotheses.png`).
+- **Screen**: Discovery workspace `/session/[code]` → **Hypotheses** tab (captured in earlier run `BROOK-2322` as `03-discovery-hypotheses.png` in git history).
 - **Say**: *"Ada uploads a photo of cupped hands near a vessel; Bao adds an independent inward scooping gesture. Asking for readings generates four competing guesses—substance (`water`), container (`cup`), action (`drinking`), and request—each marked `Guess` with explicit missing information and ambiguities. None are auto-verified, and Seat B cannot see the facilitator's hypothesis panel in community mode."*
 
 ### Beat 3 (1:15–2:00) — Blinded Discriminating Check & Lock/Reveal
-- **Screen**: Experiments page `/session/[code]/experiments` before both lock (`docs/screenshots/04-experiments-blinded.png`) → after both lock (`docs/screenshots/05-experiments-revealed.png`).
+- **Screen**: Experiments page `/session/[code]/experiments` before both lock and after both lock (captured in earlier run `BROOK-2322` as `04-experiments-blinded.png` and `05-experiments-revealed.png` in git history).
 - **Say**: *"Next, Ada approves a discriminating visual check (`Separate the liquid, the container, and the motion`). Only a neutral instruction goes to Bao—expected outcome mappings stay hidden with the facilitator. Bao saves and locks a response first; Ada still sees `Locked. Hidden until both responses are in.` Only after Ada also locks do both replies reveal together without bias."*
 
 ### Beat 4 (2:00–2:35) — Earned Verification & Gated Vocabulary / Practice
-- **Screen**: Shared vocabulary `/session/[code]/vocabulary` (`docs/screenshots/06-vocabulary-verified.png`). This frame is session `BROOK-1509`. All three entries (`drinking action`, `clay bowl`, `pouring vessel`) are labeled **Accepted, not session-verified**. The later capture, after a meaning actually reached session verification, timed out and was not saved.
-- **Say**: *"Accepting a hypothesis leaves it tentative. One participant matching across two checks stays a facilitator-supported observation. Session-verified needs both people, two stimuli, two methods, at least a 75% match rate, and no disagreement. This screenshot is the earlier accepted state, not that completed bar. A disagreement moves a meaning to Disputed."*
+- **Screen**: Shared vocabulary `/session/[code]/vocabulary`. In the earlier `BROOK-1509` capture (`06-vocabulary-verified.png` in git history, removed from the working tree), entries were labeled **Accepted, not session-verified**.
+- **Say**: *"Accepting a hypothesis leaves it tentative. One participant matching across two checks stays a facilitator-supported observation. Session-verified needs both people, two stimuli, two methods, at least a 75% match rate, and no disagreement. A disagreement moves a meaning to Disputed."*
 
 ### Beat 5 (2:35–3:00) — Production Hardening & Closing
 - **Say**: *"Under the hood on Vercel and Supabase, uploads go to a private Storage bucket served only through short-lived HMAC-signed URLs, distributed PostgreSQL rate limiting guards every join/upload/AI endpoint, all 21 Postgres tables enforce Row Level Security with Supabase Data API disabled, and local SQLite sample `SHORE-1001` stays cleanly isolated from hosted production."*
@@ -62,14 +62,13 @@ flowchart LR
 
 ## 4. Real Deployment Screenshots
 
-Screenshots captured from `https://first-contact-language-builder.vercel.app`. Items 1–5 are from the Phase 2 two-browser workflow. Item 6 is the earlier `BROOK-1509` vocabulary frame; the post-verification recapture did not finish.
+Compact `1024 x 640` screenshots captured from `https://first-contact-language-builder.vercel.app`:
 
-1. **Landing and demo-mode disclosure**: [01-landing.png](docs/screenshots/01-landing.png)
-2. **Two-seat start and join**: [02-start-join.png](docs/screenshots/02-start-join.png)
-3. **Competing simulated hypotheses**: [03-discovery-hypotheses.png](docs/screenshots/03-discovery-hypotheses.png)
-4. **Blinded experiment before both seats lock**: [04-experiments-blinded.png](docs/screenshots/04-experiments-blinded.png)
-5. **Reveal after both seats lock**: [05-experiments-revealed.png](docs/screenshots/05-experiments-revealed.png)
-6. **Vocabulary before session verification** (`BROOK-1509`; three accepted, not session-verified entries): [06-vocabulary-verified.png](docs/screenshots/06-vocabulary-verified.png)
+1. **Landing and specimen card**: [landing.png](docs/screenshots/landing.png)
+2. **Two-seat start and join setup**: [start.png](docs/screenshots/start.png)
+3. **Community access workspace**: [workspace.png](docs/screenshots/workspace.png)
+
+*(Earlier full-page Phase 2 screenshots `01-landing.png` through `06-vocabulary-verified.png` were replaced on 28 November 2026 to keep repository screenshots compact and current; they remain accessible in commit `0ce1a32`.)*
 
 ---
 

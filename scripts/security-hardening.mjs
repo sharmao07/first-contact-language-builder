@@ -92,10 +92,7 @@ try {
   const activityId = activities.data?.activityIds?.[0];
   const answered = await call(`/api/sessions/${code}/activities/${activityId}/respond`, { token: tokenB, body: { selectedOptionId: conceptId, notes: "Bao practices." } });
   const asB = await call(`/api/sessions/${code}`, { token: tokenB });
-  const asA = await call(`/api/sessions/${code}`, { token: tokenA });
   const activityB = (asB.data?.activities ?? []).find((item) => item.id === activityId);
-  const activityA = (asA.data?.activities ?? []).find((item) => item.id === activityId);
-  const foreign = (activityA?.responses ?? []).filter((item) => item.participantId !== asA.data?.viewer?.id);
   note("practice is solo", activities.ok && answered.ok && activityB?.practiceMode === "solo" && activityB?.answerKey === "" && activityB?.responses?.length === 1 && typeof activityB.responses[0].correct === "boolean", `mode=${activityB?.practiceMode} key=${activityB?.answerKey ?? "missing"}`);
   note("other participant does not receive the answer key", activityB?.answerKey === "" && !JSON.stringify(asB.data?.events ?? []).includes("\"correct\":true") || (asB.data?.events ?? []).filter((item) => item.type === "activity.answered").every((item) => item.participantId === asB.data?.viewer?.id || Object.keys(item.payload ?? {}).length === 0), "hidden");
 

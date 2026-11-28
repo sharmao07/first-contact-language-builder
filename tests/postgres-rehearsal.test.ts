@@ -1,10 +1,12 @@
 import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { PGlite } from "@electric-sql/pglite";
 import { getObjectStore } from "@/lib/storage";
 import { mediaTtlSeconds, signMediaPath, mediaSignatureValid } from "@/lib/media/sign";
 import { assessEnvironment } from "../scripts/check-env.mjs";
-import { BACKUP_PATH, CopyRefused, copySqliteDatabase, quoteIdent } from "../scripts/copy-sqlite-to-postgres.mjs";
+import { CopyRefused, copySqliteDatabase, quoteIdent } from "../scripts/copy-sqlite-to-postgres.mjs";
 
 const sourcePath = "data/first-contact.db";
 const migrationPath = "prisma/migrations/20261124220325_init/migration.sql";
@@ -20,26 +22,35 @@ afterEach(() => {
 describe("embedded postgres rehearsal", () => {
   it("copies SHORE-1001 once and refuses a second copy", async () => {
     const before = fs.statSync(sourcePath);
-    const backupBefore = fs.statSync(BACKUP_PATH);
+    const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "fclb-pg-rehearsal-"));
+    const backupPath = path.join(tempDir, "backup.db");
+    const missingBackupPath = path.join(tempDir, "missing-backup.db");
+    fs.copyFileSync(sourcePath, backupPath);
+    const backupBefore = fs.statSync(backupPath);
     const db = new PGlite();
-    await db.exec(fs.readFileSync(migrationPath, "utf8"));
-    const query = async (sql: string, params: unknown[] = []) => (await db.query(sql, params)).rows as Array<Record<string, unknown>>;
-    const summary = await copySqliteDatabase({ sourcePath, backupPath: BACKUP_PATH, query });
-    expect(summary.counts.DiscoverySession).toBe(1);
-    expect(summary.counts.Concept).toBe(8);
-    expect(summary.shoreConcepts).toBe(8);
-    const shore = await query(`SELECT code, purpose FROM "DiscoverySession" WHERE code = 'SHORE-1001'`);
-    expect(shore[0]?.code).toBe("SHORE-1001");
-    expect(shore[0]?.purpose).toBe("general");
-    const evidence = await query(`SELECT COUNT(*)::int AS count FROM "Evidence" AS evidence JOIN "DiscoverySession" AS session ON session.id = evidence."sessionId" WHERE session.code = 'SHORE-1001'`);
-    expect(Number(evidence[0]?.count)).toBe(summary.counts.Evidence);
-    await expect(copySqliteDatabase({ sourcePath, backupPath: BACKUP_PATH, query })).rejects.toBeInstanceOf(CopyRefused);
-    const after = fs.statSync(sourcePath);
-    const backupAfter = fs.statSync(BACKUP_PATH);
-    expect(after.size).toBe(before.size);
-    expect(after.mtimeMs).toBe(before.mtimeMs);
-    expect(backupAfter.size).toBe(backupBefore.size);
-    await db.close();
+    try {
+      await db.exec(fs.readFileSync(migrationPath, "utf8"));
+      const query = async (sql: string, params: unknown[] = []) => (await db.query(sql, params)).rows as Array<Record<string, unknown>>;
+      await expect(copySqliteDatabase({ sourcePath, backupPath: missingBackupPath, query })).rejects.toBeInstanceOf(CopyRefused);
+      const summary = await copySqliteDatabase({ sourcePath, backupPath, query });
+      expect(summary.counts.DiscoverySession).toBe(1);
+      expect(summary.counts.Concept).toBe(8);
+      expect(summary.shoreConcepts).toBe(8);
+      const shore = await query(`SELECT code, purpose FROM "DiscoverySession" WHERE code = 'SHORE-1001'`);
+      expect(shore[0]?.code).toBe("SHORE-1001");
+      expect(shore[0]?.purpose).toBe("general");
+      const evidence = await query(`SELECT COUNT(*)::int AS count FROM "Evidence" AS evidence JOIN "DiscoverySession" AS session ON session.id = evidence."sessionId" WHERE session.code = 'SHORE-1001'`);
+      expect(Number(evidence[0]?.count)).toBe(summary.counts.Evidence);
+      await expect(copySqliteDatabase({ sourcePath, backupPath, query })).rejects.toBeInstanceOf(CopyRefused);
+      const after = fs.statSync(sourcePath);
+      const backupAfter = fs.statSync(backupPath);
+      expect(after.size).toBe(before.size);
+      expect(after.mtimeMs).toBe(before.mtimeMs);
+      expect(backupAfter.size).toBe(backupBefore.size);
+    } finally {
+      await db.close();
+      fs.rmSync(tempDir, { recursive: true, force: true });
+    }
   }, 60_000);
 });
 

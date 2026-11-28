@@ -209,4 +209,96 @@ describe("verification thresholds edge cases", () => {
     expect(status.status).toBe("awaiting");
     expect(status.status).not.toBe("verified");
   });
+
+  it("always returns a defined explicit status across all threshold combinations", () => {
+    const scenarios = [
+      // One participant only even with 2 stimuli + 2 methods -> awaiting
+      {
+        expected: "awaiting",
+        input: {
+          archived: false,
+          disputed: false,
+          participantAccepted: true,
+          checks: [
+            { result: "correct" as const, stimulusKey: "visual_discrimination:a", experimentType: "visual_discrimination", authorId: "seat-a" },
+            { result: "correct" as const, stimulusKey: "contrast_testing:b", experimentType: "contrast_testing", authorId: "seat-a" },
+          ],
+        },
+      },
+      // One stimulus across 2 methods -> awaiting
+      {
+        expected: "awaiting",
+        input: {
+          archived: false,
+          disputed: false,
+          participantAccepted: true,
+          checks: [
+            { result: "correct" as const, stimulusKey: "same-stimulus", experimentType: "visual_discrimination", authorId: "seat-a" },
+            { result: "correct" as const, stimulusKey: "same-stimulus", experimentType: "contrast_testing", authorId: "seat-b" },
+          ],
+        },
+      },
+      // Missing stimulusKey or missing authorId never verifies -> awaiting
+      {
+        expected: "awaiting",
+        input: {
+          archived: false,
+          disputed: false,
+          participantAccepted: true,
+          checks: [
+            { result: "correct" as const, stimulusKey: "", experimentType: "visual_discrimination", authorId: "seat-a" },
+            { result: "correct" as const, stimulusKey: "contrast_testing:b", experimentType: "contrast_testing" },
+          ],
+        },
+      },
+      // Accepted without checks stays tentative
+      {
+        expected: "tentative",
+        input: { archived: false, disputed: false, participantAccepted: true, checks: [] },
+      },
+      // Unaccepted stays hypothesis even when checks pass
+      {
+        expected: "hypothesis",
+        input: {
+          archived: false,
+          disputed: false,
+          participantAccepted: false,
+          checks: [
+            { result: "correct" as const, stimulusKey: "visual_discrimination:a", experimentType: "visual_discrimination", authorId: "seat-a" },
+            { result: "correct" as const, stimulusKey: "contrast_testing:b", experimentType: "contrast_testing", authorId: "seat-b" },
+          ],
+        },
+      },
+      // Reopened without new checks stays reopened
+      {
+        expected: "reopened",
+        input: { archived: false, disputed: false, participantAccepted: true, reopened: true, checks: [] },
+      },
+      // Archived always returns archived
+      {
+        expected: "archived",
+        input: { archived: true, disputed: false, participantAccepted: true, checks: [] },
+      },
+      // All criteria satisfied -> verified
+      {
+        expected: "verified",
+        input: {
+          archived: false,
+          disputed: false,
+          participantAccepted: true,
+          checks: [
+            { result: "correct" as const, stimulusKey: "visual_discrimination:a", experimentType: "visual_discrimination", authorId: "seat-a" },
+            { result: "correct" as const, stimulusKey: "contrast_testing:b", experimentType: "contrast_testing", authorId: "seat-b" },
+          ],
+        },
+      },
+    ];
+
+    for (const scenario of scenarios) {
+      const result = deriveVerificationStatus(scenario.input);
+      expect(result.status).toBeDefined();
+      expect(result.status).toBe(scenario.expected);
+      expect(result.reason.length).toBeGreaterThan(0);
+    }
+  });
 });
